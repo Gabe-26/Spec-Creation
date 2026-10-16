@@ -2055,7 +2055,7 @@ function sheetSvg(c, info){
   if(c.mode === 'tg' && c.pvcGate){
     var gW = c.W, gH = c.H;
     var addG = function(kind, size, name, view, pts, pref){ tgRows.push({L:String.fromCharCode(65 + tgRows.length), kind:kind, size:size, name:name, view:view, pts:pts, pref:pref}); };
-    addG('tg', fmt(pk.t)+' X '+fmt(pk.w), (pk.name + (/t\s*&\s*g/i.test(pk.name) ? '' : ' T&G')).toUpperCase(), 'front', [[gW*0.4, gH*0.55],[gW*0.5, gH*0.4],[gW*0.6, gH*0.65]], 225);
+    addG('tg', fmt(pk.t)+' X '+fmt(c.tg.pitch), 'T&G', 'front', [[gW*0.4, gH*0.55],[gW*0.5, gH*0.4],[gW*0.6, gH*0.65]], 225);
     addG('frame', fmt(GM.w)+' X '+fmt(GM.d), 'GATE MASTER', 'front', [[gW*0.3, gH - GM.w/2],[gW*0.7, GM.w/2],[GM.w/2, gH*0.5]], 225);
     addG('brace', fmt(GM.bt)+' X '+fmt(c.xbrace ? GM.xw : GM.bw), c.xbrace ? 'X-BRACE' : 'SUPPORT', 'back', [], 40);
   } else if(c.mode === 'tg' && c.pvc){
