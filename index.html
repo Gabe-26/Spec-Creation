@@ -2681,8 +2681,11 @@ function sheetSvg(c, info){
   var frontStart = o.length;
   var dimsOn = !!info.dims, d = dimsOn ? drawing(c) : null;
   var wGate = c.mode === 'tg' && !c.pvc && c.s && c.s.kind === 'gate';      // wood Oklahoma gate: the front and back views are drawn larger, a bit larger than the PVC gates
-  var vb = dimsOn ? {x0:-d.fs*6.5, x1:c.W+d.fs*((c.topper && c.crown) ? 12.5 : ((c.topper || c.crown || c.wtop) ? 9 : 6.5)), z0:-d.fs*5.5, z1:(c.Hs || c.H)+d.fs*(wGate ? 1 : (c.pvcGate ? 2 : 8.6))} : {x0:0, x1:c.W, z0:0, z1:c.H};
-  var FM = fit(vb, {x0:8, x1:SX - 3, y0:fY.y0, y1:fY.y1}, wGate ? 6 : 12);
+  // every build now gets the tighter top room and view padding the wood Oklahoma gate has; room stays where a dimension (the gap) sits above the view, and on the PVC crown/scallop rail and PVC post-cap builds
+  var topDim = dimsOn && d.dims.some(function(m){ return m.k === 'h' && m.z > (c.Hs || c.H); });
+  var topRoom = topDim ? 4.6 : ((c.crown || (c.pvc && !c.pvcGate)) ? 2 : 1);
+  var vb = dimsOn ? {x0:-d.fs*6.5, x1:c.W+d.fs*((c.topper && c.crown) ? 12.5 : ((c.topper || c.crown || c.wtop) ? 9 : 6.5)), z0:-d.fs*5.5, z1:(c.Hs || c.H)+d.fs*topRoom} : {x0:0, x1:c.W, z0:0, z1:c.H};
+  var FM = fit(vb, {x0:8, x1:SX - 3, y0:fY.y0, y1:fY.y1}, 6);
   layerOrder(c, false).forEach(function(p){ polyP(p, FM, false, p.layer === 'PICKET' ? 0.7 : 0.6); });
   o.push('<g data-viewtoggle="front" style="cursor:pointer"><title>Click to hide the front view</title>'); titleBox((SX + 5)/2, fY.title, 'FRONT VIEW'); o.push('</g>');
   if(dimsOn){
@@ -2710,7 +2713,7 @@ function sheetSvg(c, info){
   // ---- back view ----
   curView = 'back';
   var backStart = o.length;
-  var BM = fit(vb, {x0:8, x1:SX - 3, y0:bY.y0, y1:bY.y1}, wGate ? 6 : 12);
+  var BM = fit(vb, {x0:8, x1:SX - 3, y0:bY.y0, y1:bY.y1}, 6);
   layerOrder(c, true).forEach(function(p){ polyP(p, BM, true, p.layer === 'PICKET' ? 0.7 : 0.8); });
   o.push('<g data-viewtoggle="back" style="cursor:pointer"><title>Click to hide the back view</title>'); titleBox((SX + 5)/2, bY.title, 'BACK VIEW'); o.push('</g>');
   var topRail = c.parts.filter(function(p){ return p.name === 'Top rail'; })[0];
