@@ -972,7 +972,7 @@ function computePVCGate(s){
       if(zrb - zo0 < 8){ warn.push('The topper is too tall for this gate. There is not enough room left for the T&G below it.'); TPK = null; }
     } else { warn.push('The topper height must be at least ' + fmt(Hov - CR.zLow + 2) + ' with the ' + railName + ' rail.'); TPK = null; }
   }      // a topper under the rail: the high-rail has to clear the lowest point of the underside
-  if(CR) xb = true;      // a crown rail gate always gets the X-brace, never the top and bottom supports, whatever the width
+  if(CR && !TPK) xb = true;      // a crown or scallop rail gate with no topper always gets the X-brace, whatever the width; with a topper (a 2x6 high-rail) the normal width rule applies
   var isOpen = TPK === 'OST' || TPK === 'OSS' || TPK === 'OSC', isSp = TPK === 'CST' || isOpen, zt = TPK ? zrb : (CR ? CR.zInEnd : zo1), Hb = zt - zo0;      // isSp: closed spindle topper, where the top of the frame is a Gate Rail (no slot) instead of a Gate Master
   // Gate Master: four mitered pieces. The profile (y across the depth, d in from the outer edge) is the 3.5 x 3.5 section with the slot in the inside edge.
   var s0 = yc - GM.slotW/2, s1 = yc + GM.slotW/2, dI = GM.w, dS = GM.w - GM.slotD;
@@ -2863,13 +2863,13 @@ function sheetSvg(c, info){
       var sp = -1, best = 1e9, si;
       for(si=0; si<r.name.length; si++) if(r.name.charAt(si) === ' '){ var mx = Math.max(si, r.name.length - si - 1); if(mx < best){ best = mx; sp = si; } }      // split where the two lines come out closest in length
       var nm1 = sp > 0 ? r.name.slice(0, sp) : r.name, nm2 = sp > 0 ? r.name.slice(sp + 1) : '';
-      if(r.size) o.push(richTextSvg(858, y + RH*0.22, r.size, 10.5, INK, 'middle', false));
-      o.push(richTextSvg(858, y + RH*(r.size ? 0.58 : 0.4), nm1, r.size ? 9 : 10.5, INK, 'middle', false));
-      o.push(richTextSvg(858, y + RH*(r.size ? 0.86 : 0.68), nm2, r.size ? 9 : 10.5, INK, 'middle', false));
+      if(r.size) o.push(richTextSvg(858, y + RH*0.22 - 1, r.size, 10.5, INK, 'middle', false));
+      o.push(richTextSvg(858, y + RH*(r.size ? 0.58 : 0.4) + (r.size ? 1 : 0), nm1, r.size ? 9 : 10.5, INK, 'middle', false));
+      o.push(richTextSvg(858, y + RH*(r.size ? 0.86 : 0.68) + (r.size ? 1 : 0), nm2, r.size ? 9 : 10.5, INK, 'middle', false));
       return;
     }
-    o.push(richTextSvg(858, y + (RH > 40 ? 16 : (RH > 32 ? 13 : 10)), r.size, 12, INK, 'middle', false));
-    o.push(richTextSvg(858, y + (RH > 40 ? 35 : (RH > 32 ? 27 : 22)), r.name.length > 22 ? r.name.slice(0,22) : r.name, 11, INK, 'middle', false));
+    o.push(richTextSvg(858, y + (RH > 40 ? 16 : (RH > 32 ? 13 : 10)) - 1, r.size, 12, INK, 'middle', false));
+    o.push(richTextSvg(858, y + (RH > 40 ? 35 : (RH > 32 ? 27 : 22)) + 1, r.name.length > 22 ? r.name.slice(0,22) : r.name, 11, INK, 'middle', false));
   });
 
   // ---- bottom strip ----
