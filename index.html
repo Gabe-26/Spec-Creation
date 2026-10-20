@@ -99,6 +99,16 @@
   .ptxt small,.lmain small{color:#4b5358;font-size:12.5px}
   .prow input:checked+.pbox .ptxt small{color:#2a2f33}
   .thumb{height:54px;width:auto;flex:none;background:#eef0ec;border-radius:2px}
+  .seg.tall span{height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .seg.tall small{display:block;font-size:12px;font-weight:500}
+  .prbtns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+  .prchip{display:inline-flex}
+  .prchip button{padding:8px 12px;font-size:14px}
+  .prchip button:first-child{border-radius:3px 0 0 3px}
+  .prchip .prx{border-radius:0 3px 3px 0;margin-left:-1.5px;padding:8px 9px}
+  .prsave{display:flex;gap:8px}
+  .prsave input{flex:1;min-width:0;font:500 15px var(--body);padding:6px 8px;border:1.5px solid var(--ink);border-radius:3px}
+  .prsave button{padding:8px 12px;font-size:14px;white-space:nowrap}
   .linkish{margin-top:8px;border-color:transparent;background:none;text-decoration:underline;padding:4px 0;font-weight:500}
   .linkish:hover{background:none;color:var(--steel)}
   dialog{width:min(780px,94vw);max-height:90vh;padding:0;border:2px solid var(--ink);border-radius:4px;color:var(--ink);background:var(--panel)}
@@ -310,7 +320,7 @@ function dowelPart(name, kind, y0, y1, xa, xb, zb, zt){
 var DEFAULTS = {
   material:'wood', kind:'gate', frame:'2x4', style:'lib_seed-gothic4',
   height:56, width:34, gap:2, top:6, bottom:7,
-  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, sideOff:false, frontOff:false, backOff:false, hiddenDims:[], count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
+  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, pframe:'gm', ppost:'5', sideOff:false, frontOff:false, backOff:false, hiddenDims:[], count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
   so:'', drawn:'', notes:'', copy:'customer', sheetDims:true, view:'work'
 };
 
@@ -411,6 +421,7 @@ function compute(s){
   if(s.kind === 'gate' && isDowel(s.frame)) s = Object.assign({}, s, {frame:'2x4'});     // dowel rail is fence only
   if(s.material === 'pvc' && s.kind === 'fence' && s.sides === 'double' && s.dstyle === 'tg') return computePVC(s);
   if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && s.dstyle === 'tg') return computePVCGate(s);
+  if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && s.dstyle === 'ilg') return computeILG(s);
   if(s.sides === 'double' && s.dstyle === 'tg') return computeTG(s);
   var f = FRAMES[s.frame], H = s.height, W = s.width, pk = picketDef(s.style);
   var frameH = H - s.top - s.bottom;
@@ -712,7 +723,7 @@ function computePVC(s){
    of each piece. Under 48 wide: a 7/8 x 1 1/2 hollow brace across the top and another across the bottom. 48 and over: an X-brace of 7/8 x 3 hollow
    pieces that lands on the left and right uprights. The braces sit against the back of the T&G and a 3/4 dia plug clamps them to it.
    Width and height are overall, outside to outside. Front to back: Gate Master 0 to 3.5, T&G centered, brace right behind the T&G, plugs behind that. */
-var GM = {w:3.5, d:3.5, slotW:0.88, slotD:0.75, bt:0.875, bw:1.5, xw:3, wall:0.0625, tgIn:1, plugR:0.375, plugH:0.13, xAt:48, minEnd:3, minHalf:1.5, railH:6, railT:2, railInto:2, railUp:2.703, railCh:1.326, plugCols:[1, 2.5], plugTop:0.75, plugBot:1.25, spW:1.5, spWall:0.0625, spCut:1.56, spGap:2, spIn:1, spEdge:0.75, scShow:10, scDrop:6, crownRo:50.09, crownRi:46.59, crownT:2, crownWall:0.0625, crownDrop:1, crownIn:1, crownSlot:0.9, crownMin:30, crownMax:60, crownN:32, capW:3.625, capUp:0.75, railPlugCols:[0.875, 2.625], railPlugRows:[1.25, 3.0]};
+var GM = {w:3.5, d:3.5, slotW:0.88, slotD:0.75, bt:0.875, bw:1.5, xw:3, wall:0.0625, tgIn:1, plugR:0.375, plugH:0.13, xAt:48, minEnd:3, minHalf:1.5, railH:6, railT:2, railInto:2, railUp:2.703, railCh:1.326, plugCols:[1, 2.5], plugTop:0.75, plugBot:1.25, spW:1.5, spWall:0.0625, spCut:1.56, spGap:2, spIn:1, spEdge:0.75, ilShow:10, ilSlotVis:0.3, oeBar:0.875, ilMinShow:3, ilIn:3, ilMinFrame:8, scShow:10, scDrop:6, crownRo:50.09, crownRi:46.59, crownT:2, crownWall:0.0625, crownDrop:1, crownIn:1, crownSlot:0.9, crownMin:30, crownMax:60, crownN:32, capW:3.625, capUp:0.75, railPlugCols:[0.875, 2.625], railPlugRows:[1.25, 3.0]};
 /* Gate Master chambers, read from the shop's profile drawing (3.5 x 3.5, 0.88 x 0.75 slot, 2.75 x 2.56 center chamber, 0.38 from the center chamber to the outer edge).
    Only those sizes are dimensioned; the thinner walls (outer 0.12, inner about 0.08, floor 0.07) and the small chambers were measured off the picture, so they are close, not exact.
    Each row is [y0, y1, d0, d1], y across the depth, d in from the outer edge: two tall chambers down each side (split by a web), the big center chamber, and one on each side of the slot. */
@@ -910,8 +921,181 @@ function crownBoardPts(x0, x1, zb, CR){      // a T&G board under the crown: fla
   for(k=0;k<=n;k++){ var x = x1 - (x1 - x0)*k/n; p.push([x, CR.zT(x)]); }
   return p;
 }
+/* PVC Illinois gate (ILG-CUS). Four Gate Rail pieces (3.5 x 3.5, no slot, welded at 45 degrees) make the frame. There is no T&G: 1.5 square hollow pickets with a pyramid cap stand
+   across the whole width, the first starting 3/4 in from the outside edge and the last ending 3/4 from the other edge (like the open spindle topper), with the whole number of
+   pickets that brings the gap closest to 2. Each picket goes 3 down into a cutout in the bottom Gate Rail, passes through a cutout in the top Gate Rail, and shows 10 above it
+   (9 of picket and the 1 cap). The first and last stand on the corners, so they only go 1 into the top Gate Rail. The overall height is to the tip of the caps. Under 48 wide
+   there is no support or brace; 48 and over gets the X-brace, behind the pickets, landing on the left and right uprights. */
+function computeILG(s){
+  var pk = picketDef(s.style), W = s.width, Hov = s.height, G = GM.w, warn = [], parts = [], pickets = [], cuts = [];
+  var show = +s.ilShow > 0 ? +s.ilShow : GM.ilShow;      // how much picket and cap shows above the top Gate Rail (adjustable)
+  if(show < GM.ilMinShow){ show = GM.ilMinShow; warn.push('The pickets must show at least ' + fmt(GM.ilMinShow) + ' above the top rail. It is drawn at ' + fmt(show) + '.'); }
+  var Wc = W - 2*G, xo0 = G, xo1 = W - G, zo0 = G, yc = GM.d/2, xb = W >= GM.xAt, rp = [[0,0],[GM.d,0],[GM.d,G],[0,G]];
+  // Crown or scallop rail: it works as it does on the Oklahoma gate with the open spindle topper, only there is no 2x6 high-rail. The rail replaces the top Gate Rail, the uprights run square to the
+  // overall height, each picket shows its own amount above the rail's top edge so the tips follow the curve, and the first and last picket tips stand 1 under the top of the uprights, which sets how far
+  // the rail drops. The pickets are flush against the uprights. The overall height is to the top of the uprights.
+  var railSel = (s.topRail === 'CROWN' || s.topRail === 'SCALLOP') ? s.topRail : null, CR = null, scal = (railSel === 'SCALLOP'), railName = scal ? 'scallop' : 'crown', openTipMax = 0;
+  if(railSel){
+    if(W < GM.crownMin - 1e-9 || W > GM.crownMax + 1e-9) warn.push('The ' + railName + ' rail is only made for gates ' + fmt(GM.crownMin) + ' to ' + fmt(GM.crownMax) + ' wide. This gate is ' + fmt(W) + ', so the top is drawn flat.');
+    else {
+      var chh = Wc/2, cxc = W/2, zsg = scal ? -1 : 1, rTop = scal ? GM.crownRi : GM.crownRo, rUnd = scal ? GM.crownRo : GM.crownRi;
+      var czc = Hov - GM.crownDrop - show - zsg*Math.sqrt(rTop*rTop - (chh - GM.spW/2)*(chh - GM.spW/2));      // the top edge is the show under the tip of the first picket
+      var arcAt = function(r){ return function(x){ return czc + zsg*Math.sqrt(Math.max(0, r*r - (x - cxc)*(x - cxc))); }; };
+      CR = {xc:cxc, zc:czc, x0:xo0, x1:xo1, flip:scal, name:railName, zO:arcAt(rTop), zI:arcAt(rUnd)};
+      CR.peak = czc + zsg*rTop;      // the dimensioned point: the top of the arch, or the bottom of the dip in the top edge
+      CR.zInEnd = scal ? CR.zI(cxc) : CR.zI(xo0);      // the lowest point of the underside: where the top of the X-brace lands
+      if(CR.zInEnd - zo0 < 8){ warn.push('The gate is too short for the ' + railName + ' rail. There is not enough room left under it, so the top is drawn flat.'); CR = null; }
+      else if(scal){
+        // Scallop: the underside is highest at the uprights, so the X-brace runs right up under the rail there; if a low, wide gate makes a diagonal touch it, the top of the X is lowered just enough to clear.
+        var zb2 = CR.zI(xo0), it2, i3, sx;
+        for(it2=0; it2<20; it2++){
+          var hb2 = zb2 - zo0, m2 = hb2/Wc, v2 = GM.xw, worst = 0;
+          for(i3=0;i3<30;i3++){ v2 = GM.xw*Math.sqrt(1 + m2*m2); m2 = (hb2 - v2)/Wc; }
+          for(sx=0; sx<=Wc/2; sx+=0.25) worst = Math.max(worst, (zb2 - m2*sx) - CR.zI(xo1 - sx));
+          if(worst <= 1e-6) break;
+          zb2 -= worst + 0.002;
+        }
+        CR.zInEnd = zb2;
+      }
+    }
+  }
+  var Hf = Hov - show, H = Hov;      // Hf: the frame height with the flat top Gate Rail; H: the height of the uprights
+  if(!CR){
+    if(Hf < GM.ilMinFrame){ Hf = GM.ilMinFrame; Hov = Hf + show; H = Hov; warn.push('The overall height must be at least ' + fmt(Hov) + ' for the Illinois gate: the pickets show ' + fmt(show) + ' above the top rail and the frame needs ' + fmt(GM.ilMinFrame) + '. It is drawn at ' + fmt(Hov) + '.'); }
+    H = Hf;
+  }
+  var zo1 = CR ? CR.zInEnd : Hf - G;      // the top of the opening: the underside of the top rail
+  if(Wc < 8) warn.push('The gate is too small for the Gate Rail frame.');
+  var pcs = [
+    {name:'Gate Rail bottom', dir:'h', pts:[[0,0],[W,0],[W-G,G],[G,G]], A:function(y,d){ return [d,y,d]; }, B:function(y,d){ return [W-d,y,d]; }, so:0, ord:-1},
+    {name:'Gate Rail left', dir:'v', pts:[[0,0],[G,G],[G,H-G],[0,H]], A:function(y,d){ return [d,y,d]; }, B:function(y,d){ return [d,y,H-d]; }, so:0, ord:(0)},
+    {name:'Gate Rail right', dir:'v', pts:[[W,0],[W,H],[W-G,H-G],[W-G,G]], A:function(y,d){ return [W-d,y,d]; }, B:function(y,d){ return [W-d,y,H-d]; }, so:1, ord:0}
+  ];
+  if(CR){      // uprights square to the full height, no top Gate Rail
+    pcs[1] = {name:'Gate Rail left', dir:'v', pts:[[0,0],[G,G],[G,H],[0,H]], A:pcs[1].A, B:function(y,d){ return [d,y,H]; }, so:0, ord:-1};      // the left upright is painted before the pickets, because its inner face shows and the pickets flush against it stand in front of that face
+    pcs[2] = {name:'Gate Rail right', dir:'v', pts:[[W,0],[W,H],[W-G,H],[W-G,G]], A:pcs[2].A, B:function(y,d){ return [W-d,y,H]; }, so:1, ord:1.7};      // painted after the pickets, which stand behind its front face
+  } else pcs.unshift({name:'Gate Rail top', dir:'h', pts:[[0,Hf],[W,Hf],[W-G,Hf-G],[G,Hf-G]], A:function(y,d){ return [d,y,Hf-d]; }, B:function(y,d){ return [W-d,y,Hf-d]; }, so:0, ord:2});
+  var rails = {};
+  pcs.forEach(function(pc){
+    rails[pc.name] = {layer:'FRAME', kind:'frame', gm:true, noSide:(pc.so !== 1), name:pc.name, dir:pc.dir, y0:0, y1:GM.d, yBack:GM.d, sord:pc.ord, pts:pc.pts, mesh:gmPrism(rp, pc.A, pc.B), slotTops:[]};
+    parts.push(rails[pc.name]);
+  });
+  // pickets: the whole number whose gap is closest to 2. Flat top: spread over the whole width starting 3/4 in from each outside edge. On a rail: flush against the uprights.
+  var spX0 = CR ? xo0 : GM.spEdge, spSpan = CR ? Wc : W - 2*GM.spEdge, spN = 2, spBest = 1e9, nn, si, xs = [];
+  for(nn=2; nn<=400; nn++){ var gq = (spSpan - GM.spW*nn)/(nn - 1); if(gq < 0) break; var dq = Math.abs(gq - GM.spGap); if(dq < spBest){ spBest = dq; spN = nn; } }
+  var spG = (spSpan - GM.spW*spN)/(spN - 1), pzLo = zo0 - GM.ilIn, sy0 = yc - GM.spW/2, sy1 = yc + GM.spW/2, w0 = GM.spWall;
+  if(CR) for(si=0; si<spN; si++) openTipMax = Math.max(openTipMax, CR.zO(spX0 + si*(GM.spW + spG) + GM.spW/2) + show);      // the tallest tip, for the side view
+  for(si=0; si<spN; si++){
+    var endP = !CR && (si === 0 || si === spN - 1), pz0 = endP ? Hf - GM.spIn : pzLo, sx0 = spX0 + si*(GM.spW + spG), sx1 = sx0 + GM.spW, smx = (sx0 + sx1)/2, smy = (sy0 + sy1)/2;
+    var tip = CR ? CR.zO(smx) + show : Hov, pz1 = tip - 1;
+    var oP = [[sx0,sy0],[sx1,sy0],[sx1,sy1],[sx0,sy1]], hP = [[sx0 + w0,sy0 + w0],[sx1 - w0,sy0 + w0],[sx1 - w0,sy1 - w0],[sx0 + w0,sy1 - w0]];
+    var hideSide = CR ? !(tip > H + 1e-6 && tip >= openTipMax - 1e-6) : false;      // on a rail only the tallest tip above the uprights shows in the side view
+    xs.push(smx);
+    pickets.push({layer:'PICKET', name:'Picket ' + (si + 1), y0:sy0, y1:sy1, noSide:hideSide, pts:rect(sx0, pz0, sx1, pz1), prof:oP, loops:{outer:oP, holes:[hP]}, isoZ:[zo0, pz1], isoSo:(CR ? 0 : 1.5), sideZ:[H, pz1],
+      isoSegs:(CR ? [{z:[zo0, Math.min(CR.zO(sx0), CR.zO(sx1), CR.zO(smx))], so:0}, {z:[Math.min(CR.zO(sx0), CR.zO(sx1), CR.zO(smx)), pz1], so:1.5}] : (endP ? [{z:[Hf, pz1], so:3}] : [{z:[zo0, zo1], so:1.5}, {z:[Hf, pz1], so:3}]))});      // the part inside the top rail is hidden by the rail
+    var apx = [smx, smy, tip], bs = [[sx0,sy0,pz1],[sx1,sy0,pz1],[sx1,sy1,pz1],[sx0,sy1,pz1]], cf = [{v:bs.slice().reverse(), kind:'flat'}], cq;
+    for(cq=0;cq<4;cq++) cf.push({v:[bs[cq], bs[(cq+1)%4], apx], kind:'flat'});
+    solidOrient(cf);
+    parts.push({layer:'FRAME', kind:'spcap', noSide:hideSide, name:'Picket cap ' + (si + 1), dir:'h', y0:sy0, y1:sy1, sord:(CR ? 1.5 : 3), pts:[[sx0,pz1],[sx1,pz1],[smx,tip]], mesh:cf, pyr:{y0:sy0, y1:sy1, z0:pz1, z1:tip}});
+    // the cutouts are drawn a little wider than the real 1.56 so the opening reads in the isometric and the picket looks like it goes down into the rail (a drawing effect only)
+    if(!CR) rails['Gate Rail top'].slotTops.push({x0:sx0 - GM.ilSlotVis, x1:sx1 + GM.ilSlotVis, z:Hf, y0:sy0 - GM.ilSlotVis, y1:sy1 + GM.ilSlotVis, so:2.5});      // the cutout in the top of the top Gate Rail
+    if(!endP) rails['Gate Rail bottom'].slotTops.push({x0:sx0 - GM.ilSlotVis, x1:sx1 + GM.ilSlotVis, z:zo0, y0:sy0 - GM.ilSlotVis, y1:sy1 + GM.ilSlotVis, so:(CR ? -0.5 : 0.5)});      // and in the top of the bottom Gate Rail
+  }
+  // X-brace (48 and over): 7/8 thick, behind the pickets. One full diagonal and the other diagonal in two halves butted against it, ends cut plumb to land on the uprights.
+  var by0 = yc + GM.spW/2, by1 = by0 + GM.bt, plugs = [];
+  if(xb){
+    var Hb = zo1 - zo0, m = Hb/Wc, vt = GM.xw, it;
+    for(it=0; it<30; it++){ vt = GM.xw*Math.sqrt(1 + m*m); m = (Hb - vt)/Wc; }
+    var D1 = [[xo0,zo0],[xo1,zo1 - vt],[xo1,zo1],[xo0,zo0 + vt]], D2 = [[xo1,zo0],[xo0,zo1 - vt],[xo0,zo1],[xo1,zo0 + vt]];
+    var ul = Math.sqrt(Wc*Wc + (Hb - vt)*(Hb - vt)), ux = Wc/ul, uz = (Hb - vt)/ul, nx = -uz, nz = ux, c1 = nx*xo0 + nz*zo0, c2 = nx*xo0 + nz*(zo0 + vt);
+    var H1 = clipPlane(D2, nx, nz, c2, 1), H2 = clipPlane(D2, nx, nz, c1, -1);
+    parts.push({layer:'BRACE', kind:'brace', name:'X-brace full', dir:'d', piece:'full', y0:by0, y1:by1, pts:D1});
+    [H1, H2].forEach(function(hp, k){ if(hp.length >= 3) parts.push({layer:'BRACE', kind:'brace', name:'X-brace half ' + (k+1), dir:'d', piece:'half', y0:by0, y1:by1, pts:hp}); });
+    // plugs hold the pickets to the brace: one on each picket where each diagonal crosses it. By the crossing the plug moves up or down the picket to the part of the half piece that shows clear of the full diagonal.
+    xs.forEach(function(px){
+      if(px < xo0 + GM.plugR || px > xo1 - GM.plugR) return;      // pickets standing on the corners are not over the brace
+      plugs.push([px, zo0 + vt/2 + m*(px - xo0)]);
+      var z2 = zo1 - vt/2 - m*(px - xo0), dd = nx*px + nz*z2 - (c1 + c2)/2;
+      if(Math.abs(dd) >= GM.xw/2 + GM.plugR + 0.25) plugs.push([px, z2]);
+      else {
+        var best = null, lim = (GM.xw/2 - GM.plugR - 0.1)*Math.sqrt(1 + m*m), tt;
+        for(tt=0; tt<=lim && best === null; tt+=0.05) [tt, -tt].forEach(function(t){ var d2 = nx*px + nz*(z2 + t) - (c1 + c2)/2; if(best === null && Math.abs(d2) >= GM.xw/2 + GM.plugR + 0.1) best = z2 + t; });
+        if(best !== null) plugs.push([px, best]);
+      }
+    });
+    plugs.forEach(function(q, i){
+      var cir = [], k;
+      for(k=0;k<24;k++) cir.push([q[0] + GM.plugR*Math.cos(2*Math.PI*k/24), q[1] + GM.plugR*Math.sin(2*Math.PI*k/24)]);
+      parts.push({layer:'FRAME', kind:'plug', name:'Plug ' + (i+1), dir:'h', y0:by1, y1:by1 + GM.plugH, pts:cir, mesh:plugMesh(q[0], q[1], by1), noSide:true});
+    });
+    cuts.push({part:'Plugs', qty:plugs.length, stock:fmt(0.75) + ' dia', length:0, note:'One on each picket along each diagonal, holding the pickets to the brace'});
+    cuts.push({part:'X-brace, full diagonal', qty:1, stock:fmt(GM.bt) + ' x ' + fmt(GM.xw) + ' hollow', length:Math.sqrt(Wc*Wc + Hb*Hb), note:'Behind the pickets. Ends cut plumb to land on the uprights'});
+    cuts.push({part:'X-brace, half pieces', qty:2, stock:fmt(GM.bt) + ' x ' + fmt(GM.xw) + ' hollow', length:0, note:'Butt against the full diagonal'});
+  }
+  if(CR){
+    var cy0 = yc - GM.crownT/2, cy1 = yc + GM.crownT/2, cN = 40, cOut = [], cIn = [], ck;
+    for(ck=0; ck<=cN; ck++){ var cxk = xo0 + Wc*ck/cN; cOut.push([cxk, CR.zO(cxk)]); cIn.push([cxk, CR.zI(cxk)]); }
+    parts.push({layer:'FRAME', kind:'frame', crown:true, name:(CR.flip ? 'Scallop rail' : 'Crown rail'), dir:'h', y0:cy0, y1:cy1, yBack:cy1, sideOrd:-1, pts:cOut.concat(cIn.slice().reverse()),
+      mesh:crownMesh(CR, cy0, cy1, true), isoMeshes:(function(){ var isoF = crownMesh(CR, cy0, cy1, false, true); return [{mesh:isoF.slice(1), so:0, y0:cy0}, {mesh:[isoF[0]], so:1.6, y0:cy0}]; })()});      // the front face last: the pickets pass through the rail, so they show only above its top edge
+    // 3 1/2 Traditional cap on each upright (the same cap as the Oklahoma crown gate): a 3/4 skirt over the upright with a 3/4 pyramid on top, sitting on top of the overall height
+    var cco = (GM.capW - GM.w)/2, ccu = GM.capUp;
+    [0, W - GM.w].forEach(function(px, ci){
+      var cx0 = px - cco, cx1 = px + GM.w + cco, cxm = px + GM.w/2, cy0c = -cco, cy1c = GM.d + cco, cym = GM.d/2, ap = [cxm, cym, H + ccu], q;
+      parts.push({layer:'FRAME', kind:'cap', capTop:true, name:'Traditional cap skirt ' + (ci + 1), dir:'h', sord:6, y0:cy0c, y1:cy1c, pts:rect(cx0, H - ccu, cx1, H),
+        zloops:{outer:[[cx0,cy0c],[cx1,cy0c],[cx1,cy1c],[cx0,cy1c]], holes:[[[px,0],[px + GM.w,0],[px + GM.w,GM.d],[px,GM.d]]], z0:H - ccu, z1:H}});
+      var cn = [[cx0,cy0c,H],[cx1,cy0c,H],[cx1,cy1c,H],[cx0,cy1c,H]], pf = [{v:cn.slice(), kind:'flat'}];
+      for(q=0;q<4;q++) pf.push({v:[cn[q], cn[(q+1)%4], ap], kind:'flat'});
+      pf.forEach(function(f){      // wind every face so it points away from the middle of the pyramid
+        var nx2 = 0, ny2 = 0, nz2 = 0, mm, mx = 0, my = 0, mz = 0;
+        for(mm=0;mm<f.v.length;mm++){ var a1 = f.v[mm], b1 = f.v[(mm+1)%f.v.length]; nx2 += (a1[1]-b1[1])*(a1[2]+b1[2]); ny2 += (a1[2]-b1[2])*(a1[0]+b1[0]); nz2 += (a1[0]-b1[0])*(a1[1]+b1[1]); mx += a1[0]; my += a1[1]; mz += a1[2]; }
+        mx /= f.v.length; my /= f.v.length; mz /= f.v.length;
+        if(nx2*(mx - cxm) + ny2*(my - cym) + nz2*(mz - (H + ccu/3)) < 0) f.v.reverse();
+      });
+      parts.push({layer:'FRAME', kind:'cap', capTop:true, name:'Traditional cap pyramid ' + (ci + 1), dir:'h', sord:6, y0:cy0c, y1:cy1c, pts:[[cx0,H],[cx1,H],[cxm,H + ccu]], mesh:pf, pyr:{y0:cy0c, y1:cy1c, z0:H, z1:H + ccu}});
+    });
+    // four plugs on the back of each upright holding the end of the rail (same pattern as the Oklahoma crown and scallop gate)
+    var rpl = [];
+    [0, 1].forEach(function(side){ GM.railPlugCols.forEach(function(cx){
+      var px = side ? W - cx : cx, zr = CR.flip ? [CR.zI(px) + GM.railPlugRows[1], CR.zI(px) + GM.railPlugRows[0]] : [CR.zO(px) - GM.railPlugRows[0], CR.zO(px) - GM.railPlugRows[1]];
+      var over = Math.max(zr[0], zr[1]) - (H - GM.capUp - GM.plugR - 0.05);      // keep clear of the cap skirt
+      if(over > 0) zr = [zr[0] - over, zr[1] - over];
+      rpl.push([px, zr[0]], [px, zr[1]]);
+    }); });
+    rpl.forEach(function(q, i){
+      var cir = [], k;
+      for(k=0;k<24;k++) cir.push([q[0] + GM.plugR*Math.cos(2*Math.PI*k/24), q[1] + GM.plugR*Math.sin(2*Math.PI*k/24)]);
+      parts.push({layer:'FRAME', kind:'plug', name:'Rail plug ' + (i+1), dir:'h', y0:GM.d, y1:GM.d + GM.plugH, yBack:GM.d + 0.5, pts:cir, mesh:plugMesh(q[0], q[1], GM.d, 1), noSide:true, noIso:true});      // back view only
+    });
+    cuts.push({part:(CR.flip ? 'Scallop rail' : 'Crown rail'), qty:1, stock:fmt(GM.crownT) + ' x ' + fmt(GM.crownRo - GM.crownRi) + ' hollow', length:Wc, note:'Between the uprights, plumb cut ends. Cutouts for the pickets.'});
+    cuts.push({part:'Rail plugs', qty:8, stock:fmt(0.75) + ' dia', length:0, note:'Four on the back of each upright, holding the end of the rail'});
+    cuts.push({part:'Gate Rail', qty:1, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:W, note:'Bottom, outside length, 45 degree miters. ' + spN + ' cutouts, ' + fmt(GM.spCut) + ' square.'});
+    cuts.push({part:'Gate Rail', qty:2, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:H, note:'Left and right, outside length, bottom mitered, top square'});
+    cuts.push({part:'Pickets', qty:spN, stock:fmt(GM.spW) + ' x ' + fmt(GM.spW) + ' hollow', length:0, note:'Gap ' + fmt(spG) + '. ' + fmt(GM.ilIn) + ' into the bottom rail, through the top rail, ' + fmt(show) + ' showing above its top edge at each picket, cut to follow the curve.'});
+  } else {
+    cuts.push({part:'Gate Rail', qty:2, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:W, note:'Top and bottom, outside length, 45 degree miters. ' + spN + ' cutouts, ' + fmt(GM.spCut) + ' square, in the top of the bottom rail and through the top rail.'});
+    cuts.push({part:'Gate Rail', qty:2, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:Hf, note:'Left and right, outside length, 45 degree miters'});
+    cuts.push({part:'Pickets', qty:spN - 2, stock:fmt(GM.spW) + ' x ' + fmt(GM.spW) + ' hollow', length:Hov - 1 - pzLo, note:'Gap ' + fmt(spG) + '. ' + fmt(GM.ilIn) + ' into the bottom rail, through the top rail, ' + fmt(show) + ' showing above it with the cap.'});
+    cuts.push({part:'Pickets, first and last', qty:2, stock:fmt(GM.spW) + ' x ' + fmt(GM.spW) + ' hollow', length:Hov - 1 - (Hf - GM.spIn), note:fmt(GM.spEdge) + ' in from each outside edge. They stand on the corner and go ' + fmt(GM.spIn) + ' into the top rail.'});
+  }
+  cuts.push({part:'Picket caps', qty:spN, stock:fmt(GM.spW) + ' x ' + fmt(GM.spW), length:1, note:'Pyramid caps, 1 tall, one on each picket'});
+  var lastX = xs[xs.length - 1], showZ0 = CR ? CR.zO(lastX) : Hf, showZ1 = CR ? Hov - GM.crownDrop : Hov;      // where the shows dimension runs: at the picket next to the upright on a rail
+  return {
+    s:s, f:{t:GM.bt, w:xb ? GM.xw : GM.bw}, pk:pk, H:Hov, W:W, frameH:Hov, z0:0, z1:Hov, n:spN, nAuto:spN, gap:null, alts:[],
+    parts:parts, pickets:pickets, cuts:cuts, brace:null, warn:warn, topEdge:Hov, frameLF:0, picketLF:0, lfList:[],
+    mode:'tg', pvc:true, pvcGate:true, ilg:{Hf:H, n:spN, gap:spG, xs:xs, zo0:zo0, zo1:zo1, show:show, showZ0:showZ0, showZ1:showZ1, showX:(CR ? lastX : W)},
+    crown:(CR ? {peak:CR.peak, zO:CR.zO, zI:CR.zI, name:CR.name} : null), Hs:(CR ? Math.max(Hov + 2*GM.capUp, CR.peak, openTipMax + 0.5) : Hov), xbrace:xb, plugPts:plugs, topper:null, top:null, Ht:Hov, FW:GM.w, FWb:GM.w, CAPT:0, D:GM.d, tF:0, tT:0.875, tB:0, cw:0, cwB:0, Wi:Wc, x0:xo0, dw:false,
+    inner:null, Wc:Wc,
+    depth:{y0:0, y1:GM.d},
+    tg:{pitch:0, lastW:0, rip:false, spaces:[], lastSpace:0, midC:[], spaceRanges:[], fSpaces:[], fLastSpace:0, fMidC:[]},
+    tgNote: spN + ' pickets, gap ' + fmt(spG) + (xb ? ', X-brace' : ', no brace')
+  };
+}
+
 function computePVCGate(s){
   var pk = picketDef(s.style), H = s.height, W = s.width, G = GM.w, warn = [], parts = [], pickets = [], cuts = [];
+  // Pocket frame: two posts (5x5 or 4x4) 1 taller than the gate at the top and 1 at the bottom, and the 2x6 top and bottom rails of the Oklahoma section between them instead of the four
+  // mitered Gate Master pieces. Gx is the width of the frame on each side, Gz the height of the frame at the top and bottom, Dp its depth, up1 how far the posts stand above the gate.
+  var PKT = (s.pframe === 'pocket'), Pt = PKT ? (+s.ppost === 4 ? 4 : 5) : 0, Gx = PKT ? Pt : GM.w, Gz = PKT ? GM.railH : GM.w, Dp = PKT ? Pt : GM.d, up1 = PKT ? 1 : 0, tgX = PKT ? 0 : GM.tgIn, topRailPart = null;
   // Open spindle topper: the pickets go through the Gate Rail and show 3 1/2 above it (2 1/2 of picket and a 1 pyramid cap). The overall height is to the tip of
   // the caps, so the frame itself is 3 1/2 shorter than the overall height.
   // Open spindle scallop: the same, but the first and last pickets show 10 above the Gate Rail and the tops drop along an arc to 6 less in the middle.
@@ -921,18 +1105,19 @@ function computePVCGate(s){
   var openOnRail = (s.topper === 'OST') && (s.topRail === 'CROWN' || s.topRail === 'SCALLOP') && W >= GM.crownMin - 1e-9 && W <= GM.crownMax + 1e-9;
   var Hov = s.height, wantOpen = (s.topper === 'OST' || s.topper === 'OSS' || s.topper === 'OSC') && !openOnRail, isScal = (s.topper === 'OSS'), isCrnT = (s.topper === 'OSC'), showUp = (isScal || isCrnT) ? GM.scShow : GM.w, gateRailPart = null, openTipMax = 0, crTopMax = 0;      // OSC: the opposite of the scallop, the first and last pickets show 4 and the ones in the middle show 10
   if(wantOpen) H = Hov - showUp;
-  var Wc = W - 2*G, Hc = H - 2*G, xo0 = G, xo1 = W - G, zo0 = G, zo1 = H - G;
+  var Wc = W - 2*Gx, Hc = H - 2*Gz, xo0 = Gx, xo1 = W - Gx, zo0 = Gz, zo1 = H - Gz;
   if(!(pk.pitch > 0)) warn.push('Pick a T&G board from the board list. The PVC 7811TG is in the library.');
   if(Wc < 8 || Hc < 8) warn.push('The gate is too small for the Gate Master frame.');
   var tT = pk.t || 0.875, pitch = pk.pitch > 0 ? pk.pitch : (pk.w || 11.25);
-  var yc = GM.d/2, ty0 = yc - tT/2, by0 = ty0 + tT, by1 = by0 + GM.bt, xb = W >= GM.xAt;
+  var yc = Dp/2, ty0 = yc - tT/2, by0 = ty0 + tT, by1 = by0 + GM.bt, xb = W >= GM.xAt;
   // Topper (lattice): the height is from the top of the gate down to the top of a 2x6 high-rail. The T&G runs below the rail, and the supports or X-brace
   // fill the space between the bottom Gate Master and the bottom of the rail.
-  var TPK = (s.topper === 'MDL' || s.topper === 'DDL' || s.topper === 'MSL' || s.topper === 'DSL' || s.topper === 'CST' || s.topper === 'OST' || s.topper === 'OSS' || s.topper === 'OSC') ? s.topper : null, T = +s.topperH || 12.5, zrt = Hov - (openOnRail ? GM.crownDrop : 0) - T, zrb = zrt - GM.railH;      // open spindle on a rail: the height runs from the top of the high-rail up to the tip of the picket next to the upright, which is 1 under the top of the uprights
-  var tMin = (wantOpen ? showUp + GM.w : GM.w) + 2;
+  var TPK = (s.topper === 'MDL' || s.topper === 'DDL' || s.topper === 'MSL' || s.topper === 'DSL' || s.topper === 'CST' || s.topper === 'OST' || s.topper === 'OSS' || s.topper === 'OSC' || s.topper === 'OEN') ? s.topper : null, T = +s.topperH || 12.5, zrt = (openOnRail ? Hov + up1 - GM.crownDrop : Hov) - T, zrb = zrt - GM.railH;      // open spindle on a rail: the height runs from the top of the high-rail up to the tip of the picket next to the upright, which is 1 under the top of the uprights
+  var topRH0 = PKT ? GM.crownRo - GM.crownRi : Gz, tMin = (wantOpen ? showUp + topRH0 : topRH0) +      // pocket gate with a topper: the top rail is a 2 x 3 1/2, so the topper only needs room for that
+     (s.topper === 'OEN' ? 3 : 2);      // the Old English topper needs room for at least two bars
   if(TPK && T < tMin){ warn.push('The topper height must be at least ' + fmt(tMin) + '.'); TPK = null; }
   else if(TPK && zrb - zo0 < 8){ warn.push('The topper is too tall for this gate. There is not enough room left for the T&G below it.'); TPK = null; }
-  if(wantOpen && !TPK){ H = Hov; Hc = H - 2*G; zo1 = H - G; }      // no topper after all: the frame is the full height again
+  if(wantOpen && !TPK){ H = Hov; Hc = H - 2*Gz; zo1 = H - Gz; }      // no topper after all: the frame is the full height again
   // Crown rail: replaces the top Gate Master. One fixed arc (R50.09 outside, R46.59 inside), so a wider gate shows more rise. The ends are cut plumb against the uprights
   // and the top corner of each end sits 1 below the top of the upright. The T&G goes 1 up into the underside of the rail, cut along the arc.
   // Scallop rail: the same rail turned over, so the top edge dips in the middle instead of rising. The ends still sit 1 below the top of the uprights and the slot is still in the underside.
@@ -943,7 +1128,7 @@ function computePVCGate(s){
     if(W < GM.crownMin - 1e-9 || W > GM.crownMax + 1e-9) warn.push('The ' + railName + ' rail is only made for gates ' + fmt(GM.crownMin) + ' to ' + fmt(GM.crownMax) + ' wide. This gate is ' + fmt(W) + ', so the top is drawn flat.');
     else {
       var chh = Wc/2, cxc = W/2, zsg = scal ? -1 : 1, rTop = scal ? GM.crownRi : GM.crownRo, rUnd = scal ? GM.crownRo : GM.crownRi, rTg = scal ? GM.crownRo - GM.crownIn : GM.crownRi + GM.crownIn;
-      var czc = openOnRail ? (H - GM.crownDrop - showUp - zsg*Math.sqrt(rTop*rTop - (chh - GM.spW/2)*(chh - GM.spW/2))) : (H - GM.crownDrop - zsg*Math.sqrt(rTop*rTop - chh*chh));      // open spindle: the top edge is 3 1/2 under the tip of the first picket
+      var czc = openOnRail ? ((H + up1) - GM.crownDrop - showUp - zsg*Math.sqrt(rTop*rTop - (chh - GM.spW/2)*(chh - GM.spW/2))) : ((H + up1) - GM.crownDrop - zsg*Math.sqrt(rTop*rTop - chh*chh));      // open spindle: the top edge is 3 1/2 under the tip of the first picket
       var arcAt = function(r){ return function(x){ return czc + zsg*Math.sqrt(Math.max(0, r*r - (x - cxc)*(x - cxc))); }; };
       CR = {xc:cxc, zc:czc, x0:xo0, x1:xo1, flip:scal, name:railName, zO:arcAt(rTop), zI:arcAt(rUnd), zT:arcAt(rTg)};
       CR.peak = czc + zsg*rTop;      // the dimensioned point: the top of the arch, or the bottom of the dip in the top edge
@@ -967,13 +1152,16 @@ function computePVCGate(s){
   }
   if(CR && TPK && zrt > CR.zLow - 2){
     if(openOnRail){      // the high-rail drops with the rail: raise the topper height just enough to clear it
-      T = Hov - GM.crownDrop - CR.zLow + 2; zrt = Hov - GM.crownDrop - T; zrb = zrt - GM.railH;
+      T = Hov + up1 - GM.crownDrop - CR.zLow + 2; zrt = Hov + up1 - GM.crownDrop - T; zrb = zrt - GM.railH;
       warn.push('The topper height was raised to ' + fmt(T) + ' so the high-rail clears the ' + railName + ' rail.');
       if(zrb - zo0 < 8){ warn.push('The topper is too tall for this gate. There is not enough room left for the T&G below it.'); TPK = null; }
     } else { warn.push('The topper height must be at least ' + fmt(Hov - CR.zLow + 2) + ' with the ' + railName + ' rail.'); TPK = null; }
   }      // a topper under the rail: the high-rail has to clear the lowest point of the underside
+  if(TPK === 'OEN' && ((CR ? CR.zLow : (PKT ? H - topRH0 : zo1)) - zrt) < 3){ warn.push('The topper is too short for the Old English grid. The opening under the top of the gate needs to be at least ' + fmt(3) + '.'); TPK = null; }
+  var topRH = (PKT && TPK) ? topRH0 : Gz;      // the height of the top rail: with a topper a pocket gate's top rail is a 2 x 3 1/2 (the bottom rail stays a 2x6)
+  if(PKT && TPK) zo1 = H - topRH;
   if(CR && !TPK) xb = true;      // a crown or scallop rail gate with no topper always gets the X-brace, whatever the width; with a topper (a 2x6 high-rail) the normal width rule applies
-  var isOpen = TPK === 'OST' || TPK === 'OSS' || TPK === 'OSC', isSp = TPK === 'CST' || isOpen, zt = TPK ? zrb : (CR ? CR.zInEnd : zo1), Hb = zt - zo0;      // isSp: closed spindle topper, where the top of the frame is a Gate Rail (no slot) instead of a Gate Master
+  var isOpen = TPK === 'OST' || TPK === 'OSS' || TPK === 'OSC', isOE = TPK === 'OEN', isSp = TPK === 'CST' || isOpen, zt = TPK ? zrb : (CR ? CR.zInEnd : zo1), Hb = zt - zo0;      // isSp: closed spindle topper, where the top of the frame is a Gate Rail (no slot) instead of a Gate Master
   // Gate Master: four mitered pieces. The profile (y across the depth, d in from the outer edge) is the 3.5 x 3.5 section with the slot in the inside edge.
   var s0 = yc - GM.slotW/2, s1 = yc + GM.slotW/2, dI = GM.w, dS = GM.w - GM.slotD;
   var prof = [[0,0],[GM.d,0],[GM.d,dI],[s1,dI],[s1,dS],[s0,dS],[s0,dI],[0,dI]];
@@ -986,7 +1174,7 @@ function computePVCGate(s){
   if(CR) pieces = [pieces[1],      // crown rail: no top Gate Master; the uprights run square to the full height
     {name:'Gate Master left', dir:'v', pts:[[0,0],[G,G],[G,H],[0,H]], A:pieces[2].A, B:function(y,d){ return [d,y,H]; }, so:0},
     {name:'Gate Master right', dir:'v', pts:[[W,0],[W,H],[W-G,H],[W-G,G]], A:pieces[3].A, B:function(y,d){ return [W-d,y,H]; }, so:1}];
-  pieces.forEach(function(pc){
+  (PKT ? [] : pieces).forEach(function(pc){
     if(isSp && pc.name === 'Gate Master top'){      // Gate Rail: 3.5 x 3.5 like the Gate Master but no slot. It has 1.56 square cutouts for the pickets.
       gateRailPart = {layer:'FRAME', kind:'frame', gm:true, noSide:true, name:'Gate Rail', dir:'h', y0:0, y1:GM.d, yBack:GM.d, sord:2, pts:pc.pts, mesh:gmPrism([[0,0],[GM.d,0],[GM.d,dI],[0,dI]], pc.A, pc.B), slotTops:[]};
       parts.push(gateRailPart);
@@ -998,15 +1186,55 @@ function computePVCGate(s){
       slotTops:(CR && pc.dir === 'v') ? GMH.map(function(c){ var lf = (pc.name === 'Gate Master left'); return {x0:lf ? c[2] : W - c[3], x1:lf ? c[3] : W - c[2], y0:c[0], y1:c[1], z:H, so:1}; }) : undefined,      // crown: the square top of each upright shows its chambers
       isoMeshes:[{mesh:lipF, so:2, y0:0}, {mesh:mainF, so:-1, y0:s1}]});      // isometric: everything else first, then the T&G, then the lip over it so the T&G reads as inside the slot
   });
+  // Top of the posts: 1 above the gate. With the open spindle topper and the open spindle scallop topper the pickets stand above the top rail, so the posts rise to 1 above the tips of the pickets.
+  var pkTop = H + up1;
+  if(PKT && TPK && wantOpen && (TPK === 'OST' || TPK === 'OSS')) pkTop = Hov + 1;
+  if(PKT && TPK && wantOpen && TPK === 'OSC') pkTop = H + (GM.scShow - GM.scDrop) + 1;      // the crown topper: 1 above the tips of the first and last pickets (the shortest); the ones in the middle stand above the posts
+  if(PKT){
+    // Pocket frame: the posts, and the top and bottom 2x6 rails (the same rails as the Oklahoma section, each going 2 into a post). A crown or scallop rail replaces the top rail.
+    [0, 1].forEach(function(pi){ var ppx = pi ? W - Pt : 0; parts.push({layer:'FRAME', kind:'post', name:'Post ' + (pi + 1), dir:'v', sord:(pi === 0 ? -1 : 5), sideOrd:-1, y0:0, y1:Pt, pts:rect(ppx, -up1, ppx + Pt, pkTop)}); });
+    var pry0 = yc - GM.railT/2, pry1 = yc + GM.railT/2;
+    var mkPR = function(name, zb, zt, top){
+      var ld = railLoops(pry0, zb, zt, top), pr = {layer:'FRAME', kind:'rail', name:name, dir:'h', sord:1, sideOrd:-0.5, y0:pry0, y1:pry1, yBack:pry1 + 0.25,      // yBack: seen from the back the rail is in front of the T&G that goes into it
+     pts:rect(Pt, zb, W - Pt, zt), stepPts:rect(Pt - GM.railInto, zb, W - Pt + GM.railInto, zt), loops:ld, x0:Pt - GM.railInto, x1:W - Pt + GM.railInto};
+      pr.isoBodies = railIso(ld, yc, Pt, W - Pt);
+      return pr;
+    };
+    parts.push(mkPR('Bottom rail', 0, GM.railH, false));
+    if(!CR){
+      if(TPK){      // with a topper: a plain hollow 2 x 3 1/2 rail (the same stock as the crown rail), with the cutouts for the topper
+        var trl = {outer:rect(pry0, H - topRH, pry1, H), holes:[rect(pry0 + GM.wall, H - topRH + GM.wall, pry1 - GM.wall, H - GM.wall)]};
+        topRailPart = {layer:'FRAME', kind:'rail', name:'Top rail', dir:'h', sord:1, sideOrd:-0.5, y0:pry0, y1:pry1, yBack:pry1 + 0.25, pts:rect(Pt, H - topRH, W - Pt, H), stepPts:rect(Pt - GM.railInto, H - topRH, W - Pt + GM.railInto, H), loops:trl, x0:Pt - GM.railInto, x1:W - Pt + GM.railInto, isoBodies:null, slotTops:[]};
+      } else topRailPart = mkPR('Top rail', H - GM.railH, H, true);
+      if(isSp){ topRailPart.isoBodies = null; topRailPart.sord = 2; topRailPart.slotTops = []; gateRailPart = topRailPart; }      // with the 1 1/2 pickets the top rail is one plain piece with their cutouts, as the Gate Rail is
+      parts.push(topRailPart);
+    }
+    // Traditional caps on the posts, the same cap as the Oklahoma section: a 3/4 skirt over the top of the post with a 3/4 pyramid on top
+    var pcw = Pt + 0.125, pco = (pcw - Pt)/2, pcu = GM.capUp, pTop = pkTop;
+    [0, W - Pt].forEach(function(px, ci){
+      var cx0 = px - pco, cx1 = px + Pt + pco, cxm = px + Pt/2, cy0c = -pco, cy1c = Pt + pco, cym = Pt/2, ap = [cxm, cym, pTop + pcu], q;
+      parts.push({layer:'FRAME', kind:'cap', capTop:true, name:'Traditional cap skirt ' + (ci + 1), dir:'h', sord:6, y0:cy0c, y1:cy1c, pts:rect(cx0, pTop - pcu, cx1, pTop),
+        zloops:{outer:[[cx0,cy0c],[cx1,cy0c],[cx1,cy1c],[cx0,cy1c]], holes:[[[px,0],[px + Pt,0],[px + Pt,Pt],[px,Pt]]], z0:pTop - pcu, z1:pTop}});
+      var cn = [[cx0,cy0c,pTop],[cx1,cy0c,pTop],[cx1,cy1c,pTop],[cx0,cy1c,pTop]], pf = [{v:cn.slice(), kind:'flat'}];
+      for(q=0;q<4;q++) pf.push({v:[cn[q], cn[(q+1)%4], ap], kind:'flat'});
+      pf.forEach(function(f){      // wind every face so it points away from the middle of the pyramid
+        var nx = 0, ny = 0, nz = 0, m, mx = 0, my = 0, mz = 0;
+        for(m=0;m<f.v.length;m++){ var a1 = f.v[m], b1 = f.v[(m+1)%f.v.length]; nx += (a1[1]-b1[1])*(a1[2]+b1[2]); ny += (a1[2]-b1[2])*(a1[0]+b1[0]); nz += (a1[0]-b1[0])*(a1[1]+b1[1]); mx += a1[0]; my += a1[1]; mz += a1[2]; }
+        mx /= f.v.length; my /= f.v.length; mz /= f.v.length;
+        if(nx*(mx - cxm) + ny*(my - cym) + nz*(mz - (pTop + pcu/3)) < 0) f.v.reverse();
+      });
+      parts.push({layer:'FRAME', kind:'cap', capTop:true, name:'Traditional cap pyramid ' + (ci + 1), dir:'h', sord:6, y0:cy0c, y1:cy1c, pts:[[cx0,pTop],[cx1,pTop],[cxm,pTop + pcu]], mesh:pf, pyr:{y0:cy0c, y1:cy1c, z0:pTop, z1:pTop + pcu}});
+    });
+  }
   // Braces: 7/8 thick, hollow with a 1/16 wall, right against the back of the T&G
   function hollow(y0, z0, y1, z1){ return {outer:rect(y0, z0, y1, z1), holes:[rect(y0 + GM.wall, z0 + GM.wall, y1 - GM.wall, z1 - GM.wall)]}; }
   var plugXs = [], plugs = [], brK = 0;
   // T&G layout: the first and last boards are cut to the same width so neither side looks wider than the other. Full boards in between.
   // The end boards are kept at least GM.minEnd wide, so a sliver is never left; if they would be narrower, one more full board is traded for wider ends.
-  var span = Wc + 2*GM.tgIn, kk = Math.floor(span/pitch + 1e-9), kF = -1, eE = 0, q0;
+  var span = Wc + 2*tgX, kk = Math.floor(span/pitch + 1e-9), kF = -1, eE = 0, q0;
   for(q0=kk; q0>=0; q0--){ var e0 = (span - q0*pitch)/2; if(e0 >= GM.minEnd - 1e-9 && e0 <= pitch + 1e-9){ kF = q0; eE = e0; break; } }
   if(kF < 0){ kF = kk; eE = (span - kF*pitch)/2; }
-  var nT = kF + 2, xs = xo0 - GM.tgIn, xe = xs + span;
+  var nT = kF + 2, xs = xo0 - tgX, xe = xs + span;
   var eT = Math.max(0.0625, (pk.w || pitch) - pitch), real = pk.id === 'seed-7811tg' || /7811/i.test(pk.name || ''), w11 = pk.w || pitch + eT, geo = [], gi;
   for(gi=0; gi<nT; gi++){      // where each board sits: tongue tip ox, visible edges, and where it is cut (cl, cr) measured from the tongue tip
     var g = {first:(gi === 0), last:(gi === nT-1), cl:0, cr:w11};
@@ -1053,18 +1281,18 @@ function computePVCGate(s){
     parts.push({layer:'FRAME', kind:'plug', name:'Plug ' + (i+1), dir:'h', y0:by1, y1:by1 + GM.plugH, pts:cir, mesh:plugMesh(q[0], q[1], by1), noSide:true});
   });
   // High-rail, lattice and the four plugs on each upright that hold the rail
-  var lat = null, tL = 0, latH = 0, latPlugs = [], spInfo = null;
+  var lat = null, tL = 0, latH = 0, latPlugs = [], spInfo = null, oeInfo = null;
   if(TPK){
-    var ry0 = yc - GM.railT/2, ry1 = yc + GM.railT/2, rl = isSp ? railLoops(ry0, zrb, zrt, true) : railLoopsMid(ry0, zrb);
+    var ry0 = yc - GM.railT/2, ry1 = yc + GM.railT/2, rl = (isSp || isOE) ? railLoops(ry0, zrb, zrt, true) : railLoopsMid(ry0, zrb);
     var rail = {layer:'FRAME', kind:'rail', name:'2x6 high-rail', dir:'h', y0:ry0, y1:ry1, yBack:ry1 + 0.25, noSide:true, pts:rect(xo0, zrb, xo1, zrt), loops:rl, x0:xo0 - GM.railInto, x1:xo1 + GM.railInto};
-    rail.isoBodies = railIso(rl, yc, xo0, xo1);
-    rail.slotTops = isSp ? [] : [{x0:xo0, x1:xo1, z:zrt, y0:yc - 0.45, y1:yc + 0.45}];
+    rail.isoBodies = null;      // the high-rail is one plain piece in the isometric (a flat top with just the slot in it, like the Fusion model): the split down its middle left a line across the top
+    rail.slotTops = (isSp || isOE) ? [] : (function(){ var lt0 = (TPK === 'MDL' || TPK === 'MSL') ? LAT.mdl.t : LAT.ddl.t, sw = lt0/2 + 0.08; return [{x0:xo0, x1:xo1, z:zrt, y0:yc - sw, y1:yc + sw, so:0.25}]; })();      // a narrow slot, just wider than the lattice, as in the Fusion model (a drawing effect: the profile used for the side view and the STEP still has the wider slot)
     parts.push(rail);
-    tL = isSp ? 0 : ((TPK === 'MDL' || TPK === 'MSL') ? LAT.mdl.t : LAT.ddl.t);
-    if(!isSp){
+    tL = (isSp || isOE) ? 0 : ((TPK === 'MDL' || TPK === 'MSL') ? LAT.mdl.t : LAT.ddl.t);
+    if(!isSp && !isOE){
     // under a crown or scallop rail the lattice goes 1 up into the underside of the rail, so its top follows the arc
-    var zoTop = CR ? (CR.zI(xo0) + CR.zI(CR.xc))/2 : zo1, latTop = CR ? Math.max(CR.zT(xo0 - GM.tgIn), CR.zT(CR.xc), CR.zT(xo1 + GM.tgIn)) : zo1 + GM.tgIn;
-    lat = {type:TPK, x0:xo0 - GM.tgIn, x1:xo1 + GM.tgIn, z0:zrt - GM.railCh, z1:latTop, cx:(xo0 + xo1)/2, cz:(zrt + zoTop)/2, t:tL, topFn:CR ? CR.zT : null, topIsConcave:!!(CR && !CR.flip)};
+    var zoTop = CR ? (CR.zI(xo0) + CR.zI(CR.xc))/2 : zo1, latTop = CR ? Math.max(CR.zT(xo0 - tgX), CR.zT(CR.xc), CR.zT(xo1 + tgX)) : zo1 + GM.tgIn;
+    lat = {type:TPK, zIso:zrt, x0:xo0 - tgX, x1:xo1 + tgX, z0:zrt - GM.railCh, z1:latTop, cx:(xo0 + xo1)/2, cz:(zrt + zoTop)/2, t:tL, topFn:CR ? CR.zT : null, topIsConcave:!!(CR && !CR.flip)};
     latH = lat.z1 - lat.z0;
     parts.push({layer:'FRAME', kind:'lattice', name:TPK + ' lattice', dir:'h', y0:yc - tL/2, y1:yc + tL/2, noSide:true, pts:latOutline(lat), lat:lat,
       exportFn:function(){
@@ -1079,7 +1307,7 @@ function computePVCGate(s){
       // with the whole number of pickets that brings the gap closest to 2. The bottom goes down into the top chamber of the high-rail, the top goes into the Gate Rail.
       // Open spindle: the pickets are spread over the whole width instead, the first starting 3/4 in from the outside edge of the gate and the last ending 3/4 from the
       // other edge. The first and last stand on top of the corners (Gate Master and Gate Rail), so they only go 1 into the Gate Rail; the ones between go through it.
-      var openFree = isOpen && !CR, spX0 = openFree ? GM.spEdge : xo0, spSpan = openFree ? W - 2*GM.spEdge : Wc;
+      var openFree = isOpen && !CR && !PKT, spX0 = openFree ? GM.spEdge : xo0, spSpan = openFree ? W - 2*GM.spEdge : Wc;
       var spN = 2, spBest = 1e9, nn;
       for(nn=2; nn<=400; nn++){ var gq = (spSpan - GM.spW*nn)/(nn - 1); if(gq < 0) break; var dq = Math.abs(gq - GM.spGap); if(dq < spBest){ spBest = dq; spN = nn; } }
       var spG = (spSpan - GM.spW*spN)/(spN - 1), spZ0 = zrt - GM.railCh, spZ1 = isOpen ? Hov - 1 : zo1 + GM.spIn, si;      // open: the picket runs through the Gate Rail and ends under a 1 tall cap
@@ -1090,13 +1318,13 @@ function computePVCGate(s){
       if(isCrnT) for(si=0; si<spN; si++) crTopMax = Math.max(crTopMax, tipOf(spX0 + si*(GM.spW + spG) + GM.spW/2));      // the tallest tip, for the side view
       if(CR && isOpen) for(si=0; si<spN; si++) openTipMax = Math.max(openTipMax, CR.zO(spX0 + si*(GM.spW + spG) + GM.spW/2) + showUp);      // the tallest tip
       for(si=0; si<spN; si++){
-        var endP = isOpen && !CR && (si === 0 || si === spN - 1), pz0 = endP ? H - GM.spIn : spZ0;
+        var endP = isOpen && !CR && !PKT && (si === 0 || si === spN - 1), pz0 = endP ? H - GM.spIn : spZ0;
         var sx0 = spX0 + si*(GM.spW + spG), sx1 = sx0 + GM.spW, sy0 = yc - GM.spW/2, sy1 = yc + GM.spW/2, w0 = GM.spWall;
         var tip = (CR && isOpen) ? CR.zO((sx0 + sx1)/2) + showUp : tipOf((sx0 + sx1)/2), pz1 = isOpen ? tip - 1 : (CR ? Math.min(CR.zT(sx0), CR.zT(sx1), (CR.xc > sx0 && CR.xc < sx1) ? CR.zT(CR.xc) : 1e9) : spZ1), oP = [[sx0,sy0],[sx1,sy0],[sx1,sy1],[sx0,sy1]], hP = [[sx0 + w0,sy0 + w0],[sx1 - w0,sy0 + w0],[sx1 - w0,sy1 - w0],[sx0 + w0,sy1 - w0]];
-        var spk = {layer:'PICKET', name:'Spindle picket ' + (si + 1), y0:sy0, y1:sy1, noSide:(!isOpen || (isScal && !endP) || (isCrnT && tip < crTopMax - 1e-6) || (CR && !(tip > H + 1e-6 && tip >= openTipMax - 1e-6))), pts:rect(sx0, pz0, sx1, pz1), prof:oP, loops:{outer:oP, holes:[hP]}, isoZ:[zrt, pz1], isoSo:(CR ? 0 : 1.5)};      // under the crown the rail paints over the tops of the pickets
+        var spk = {layer:'PICKET', name:'Spindle picket ' + (si + 1), y0:sy0, y1:sy1, noSide:(!isOpen || (isScal && !endP) || (isCrnT && tip < crTopMax - 1e-6) || (CR && !(tip > H + 1e-6 && tip >= openTipMax - 1e-6))), pts:rect(sx0, pz0, sx1, pz1), prof:oP, loops:{outer:oP, holes:[hP]}, isoZ:[zrt, pz1], isoSo:(CR ? 0.5 : 1.5)};      // under the crown the rail paints over the tops of the pickets
         if(!endP){ spLo = Math.min(spLo, pz1 - pz0); spHi = Math.max(spHi, pz1 - pz0); }
         if(isOpen){      // above the Gate Rail the picket is seen from the side; in the isometric the part above the rail is drawn after the rail
-          spk.sideZ = [H, pz1]; spk.isoSegs = CR ? [{z:[zrt, CR.zO((sx0 + sx1)/2)], so:0}, {z:[CR.zO((sx0 + sx1)/2), pz1], so:1.5}] : (endP ? [{z:[H, pz1], so:3}] : [{z:[zrt, zo1], so:1.5}, {z:[H, pz1], so:3}]);
+          spk.sideZ = [H, pz1]; spk.isoSegs = CR ? [{z:[zrt, CR.zO((sx0 + sx1)/2)], so:0.5}, {z:[CR.zO((sx0 + sx1)/2), pz1], so:1.5}] : (endP ? [{z:[H, pz1], so:3}] : [{z:[zrt, zo1], so:1.5}, {z:[H, pz1], so:3}]);
           var smx = (sx0 + sx1)/2, smy = (sy0 + sy1)/2, apx = [smx, smy, tip], bs = [[sx0,sy0,pz1],[sx1,sy0,pz1],[sx1,sy1,pz1],[sx0,sy1,pz1]], cf = [{v:bs.slice().reverse(), kind:'flat'}];
           for(var cq=0;cq<4;cq++) cf.push({v:[bs[cq], bs[(cq+1)%4], apx], kind:'flat'});
           solidOrient(cf);
@@ -1104,10 +1332,56 @@ function computePVCGate(s){
           if(gateRailPart) gateRailPart.slotTops.push({x0:sx0 - 0.03, x1:sx1 + 0.03, z:H, y0:sy0 - 0.03, y1:sy1 + 0.03, so:2.5});      // the cutout in the top of the Gate Rail
         }
         pickets.push(spk);
-        if(!endP) rail.slotTops.push({x0:sx0 - 0.03, x1:sx1 + 0.03, z:zrt, y0:sy0 - 0.03, y1:sy1 + 0.03});      // the 1.56 square cutout in the top of the high-rail
+        if(!endP){ var hm2 = Math.min(0.2, Math.max(0.05, spG/4)); rail.slotTops.push({x0:sx0 - hm2, x1:sx1 + hm2, z:zrt, y0:sy0 - hm2, y1:sy1 + hm2, so:0.25}); }      // the 1.56 square cutout in the top of the high-rail, drawn a little wider so the opening reads in the isometric (a drawing effect only)      // the 1.56 square cutout in the top of the high-rail
       }
     }
-    [0, 1].forEach(function(side){ GM.plugCols.forEach(function(cx){ [zrt - GM.plugTop, zrb + GM.plugBot].forEach(function(zz){ latPlugs.push([side ? W - cx : cx, zz]); }); }); });
+    if(isOE){
+      // Old English topper: hollow 1 1/2 square uprights, and hollow 1 1/2 x 7/8 bars that run inside them with the 1 1/2 side facing front, so everything reads 1 1/2 square. The spacing
+      // works like the wood square lattice: the whole number of uprights (and of bars) whose clear openings come closest to the lattice spacing, a tie going to the larger count. The first and last
+      // upright are flush with the Gate Masters, and the bars spaced from the high-rail and from the top of the opening (an opening at each end). The uprights go down into the high-rail and 1 up into the top Gate
+      // Master (or under a crown or scallop rail, up to the lowest point they sit under); the bars are centered front to back in the uprights and go 1 into the slot of each Gate Master.
+      rail.isoBodies = null;      // in the isometric the high-rail is one plain piece here: the split down its middle left a line across the top
+      var oeWant = +s.latSp >= 0.5 ? +s.latSp : 2, oeTop = CR ? CR.zLow : zo1, oeHo = oeTop - zrt;
+      var oeCount = function(span, want){ var best = 2, bd = 1e9, nn, g, d; for(nn=2; nn<=300; nn++){ g = (span - GM.spW*nn)/(nn - 1); if(g < -1e-9) break; d = Math.abs(g - want); if(d <= bd + 1e-9){ bd = d; best = nn; } } return best; };
+      // the bars are spaced from both ends: an opening between the top of the high-rail and the first bar, and one between the last bar and the underside of the top, so n bars have n + 1 openings
+      var oeCountBars = function(span, want){ var best = 1, bd = 1e9, nn, g, d; for(nn=1; nn<=300; nn++){ g = (span - GM.spW*nn)/(nn + 1); if(g < -1e-9) break; d = Math.abs(g - want); if(d <= bd + 1e-9){ bd = d; best = nn; } } return best; };
+      var oeM = oeCount(Wc, oeWant), oeN = oeCountBars(oeHo, oeWant), oeGx = (Wc - GM.spW*oeM)/(oeM - 1), oeGz = (oeHo - GM.spW*oeN)/(oeN + 1), oi, oeXs = [], oeZs = [];
+      var oby0 = yc - GM.oeBar/2, oby1 = yc + GM.oeBar/2, obx0 = xo0 - tgX, obx1 = xo1 + tgX, oeLo = 1e9, oeHi = 0;
+      var oeU0 = [], oeSo0 = (CR ? 0.5 : 1.5), oeSoU = function(k){ return oeSo0 + 0.0005*k; };      // each upright gets its own paint order so the bar pieces can go in between
+      for(oi=0; oi<oeM; oi++) oeU0.push(xo0 + oi*(GM.spW + oeGx));
+      var oeBox = function(x0, y0, z0, x1, y1, z1){      // a box as outward-facing faces, for the isometric
+        var cf = [[[x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1]], [[x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0]], [[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]], [[x1,y0,z0],[x1,y1,z0],[x1,y1,z1],[x1,y0,z1]], [[x0,y0,z0],[x0,y1,z0],[x1,y1,z0],[x1,y0,z0]], [[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]]].map(function(v){ return {v:v, kind:'flat'}; });
+        return solidOrient(cf);
+      };
+      var oeSlotFace = function(X, y0, z0, z1, y1){      // the opening in the side of an upright, facing +x (the side the isometric sees)
+        var vs = [[X,y0,z0],[X,y1,z0],[X,y1,z1],[X,y0,z1]], nxv = 0, m2;
+        for(m2=0;m2<4;m2++){ var a2 = vs[m2], e2 = vs[(m2+1)%4]; nxv += (a2[1]-e2[1])*(a2[2]+e2[2]); }
+        if(nxv < 0) vs.reverse();
+        return [{v:vs, kind:'flat'}];
+      };
+      for(oi=0; oi<oeN; oi++){
+        var obz0 = zrt + oeGz + oi*(GM.spW + oeGz), obz1 = obz0 + GM.spW, isoPcs = [], sk, SM = 0.2;
+        oeZs.push((obz0 + obz1)/2);
+        for(sk=0; sk<=oeM; sk++){      // piece sk runs from the upright before it to the upright after it (the first and last run into the Gate Master slots)
+          var sxa = sk === 0 ? obx0 : oeU0[sk - 1] + GM.spW, sxb = sk === oeM ? obx1 : oeU0[sk], soP = sk === 0 ? oeSoU(0) - 0.00025 : oeSoU(sk - 1) + 0.00025;
+          if(sk > 0) isoPcs.push({mesh:oeSlotFace(oeU0[sk - 1] + GM.spW, oby0 - SM, obz0 - SM, obz1 + SM, oby1 + SM), so:soP - 0.0001, y0:oby0, kind:'slot'});
+          isoPcs.push({mesh:oeBox(sxa, oby0, obz0, sxb, oby1, obz1), so:soP, y0:oby0});
+        }
+        parts.push({layer:'FRAME', kind:'oebar', name:'Old English bar ' + (oi + 1), dir:'h', y0:oby0, y1:oby1, yBack:oby1, noSide:true, pts:rect(obx0, obz0, obx1, obz1), loops:hollow(oby0, obz0, oby1, obz1), x0:obx0, x1:obx1, isoMeshes:isoPcs});
+      }
+      for(oi=0; oi<oeM; oi++){
+        var ox0 = oeU0[oi], ox1 = ox0 + GM.spW, oy0 = yc - GM.spW/2, oy1 = yc + GM.spW/2, ow = GM.spWall, opz0 = zrt - GM.railCh;
+        var opz1 = CR ? Math.min(CR.zT(ox0), CR.zT(ox1), (CR.xc > ox0 && CR.xc < ox1) ? CR.zT(CR.xc) : 1e9) : zo1 + GM.tgIn;
+        var ooP = [[ox0,oy0],[ox1,oy0],[ox1,oy1],[ox0,oy1]], ohP = [[ox0 + ow,oy0 + ow],[ox1 - ow,oy0 + ow],[ox1 - ow,oy1 - ow],[ox0 + ow,oy1 - ow]];
+        oeXs.push((ox0 + ox1)/2); oeLo = Math.min(oeLo, opz1 - opz0); oeHi = Math.max(oeHi, opz1 - opz0);
+        pickets.push({layer:'PICKET', name:'Old English upright ' + (oi + 1), y0:oy0, y1:oy1, yBack:oy1, noSide:true, pts:rect(ox0, opz0, ox1, opz1), prof:ooP, loops:{outer:ooP, holes:[ohP]}, isoZ:[zrt, opz1], isoSo:oeSoU(oi)});
+        var hm = Math.min(0.2, Math.max(0.05, oeGx/4)); rail.slotTops.push({x0:ox0 - hm, x1:ox1 + hm, z:zrt, y0:oy0 - hm, y1:oy1 + hm, so:0.25});      // the 1.56 square cutout in the top of the high-rail, drawn a little wider so the opening reads in the isometric (a drawing effect only)
+      }
+      oeInfo = {xs:oeXs, zs:oeZs, nUp:oeM, nBar:oeN, gapX:oeGx, gapZ:oeGz, zTop:oeTop};
+      cuts.push({part:'Old English uprights', qty:oeM, stock:fmt(GM.spW) + ' x ' + fmt(GM.spW) + ' hollow', length:oeHi, note:'Gap ' + fmt(oeGx) + (oeHi - oeLo > 0.01 ? ' (lengths ' + fmt(oeLo) + ' to ' + fmt(oeHi) + ')' : '') + '. ' + fmt(GM.spCut) + ' square cutouts in the top of the high-rail. Slots for the bars.'});
+      cuts.push({part:'Old English bars', qty:oeN, stock:fmt(GM.spW) + ' x ' + fmt(GM.oeBar) + ' hollow', length:obx1 - obx0, note:'Gap ' + fmt(oeGz) + '. The 1 1/2 side faces front. They run inside the uprights and go ' + fmt(GM.tgIn) + ' into the slot of each Gate Master.'});
+    }
+    if(!PKT) [0, 1].forEach(function(side){ GM.plugCols.forEach(function(cx){ [zrt - GM.plugTop, zrb + GM.plugBot].forEach(function(zz){ latPlugs.push([side ? W - cx : cx, zz]); }); }); });
     latPlugs.forEach(function(q, i){
       var cir = [], k;
       for(k=0;k<24;k++) cir.push([q[0] + GM.plugR*Math.cos(2*Math.PI*k/24), q[1] + GM.plugR*Math.sin(2*Math.PI*k/24)]);
@@ -1118,9 +1392,10 @@ function computePVCGate(s){
     var cy0 = yc - GM.crownT/2, cy1 = yc + GM.crownT/2, cN = 40, cOut = [], cIn = [], ck;
     for(ck=0; ck<=cN; ck++){ var cxk = xo0 + Wc*ck/cN; cOut.push([cxk, CR.zO(cxk)]); cIn.push([cxk, CR.zI(cxk)]); }
     parts.push({layer:'FRAME', kind:'frame', crown:true, name:(CR.flip ? 'Scallop rail' : 'Crown rail'), dir:'h', y0:cy0, y1:cy1, yBack:cy1, sideOrd:-1, pts:cOut.concat(cIn.slice().reverse()),
-      mesh:crownMesh(CR, cy0, cy1, true), isoMeshes:[{mesh:crownMesh(CR, cy0, cy1, false, true), so:0, y0:cy0}]});
+      mesh:crownMesh(CR, cy0, cy1, true), isoMeshes:[{mesh:crownMesh(CR, cy0, cy1, false, true), so:(TPK ? 0.9 : 0), y0:cy0}]});      // with the Old English grid the rail is painted after it, so it covers the tops of the uprights
     // 3 1/2 Traditional cap on each upright: the same cap as the PVC Oklahoma section, sized for the Gate Master. A 3/4 tall skirt (3 5/8 outside, 3 1/2 inside, open at
     // the bottom) slips over the upright, with a 3/4 tall pyramid on top. The caps sit on top of the overall height.
+    if(!PKT){
     var cco = (GM.capW - GM.w)/2, ccu = GM.capUp;
     [0, W - GM.w].forEach(function(px, ci){
       var cx0 = px - cco, cx1 = px + GM.w + cco, cxm = px + GM.w/2, cy0c = -cco, cy1c = GM.d + cco, cym = GM.d/2, ap = [cxm, cym, H + ccu], q;
@@ -1150,11 +1425,12 @@ function computePVCGate(s){
       for(k=0;k<24;k++) cir.push([q[0] + GM.plugR*Math.cos(2*Math.PI*k/24), q[1] + GM.plugR*Math.sin(2*Math.PI*k/24)]);
       parts.push({layer:'FRAME', kind:'plug', name:'Rail plug ' + (i+1), dir:'h', y0:GM.d, y1:GM.d + GM.plugH, yBack:GM.d + 0.5, pts:cir, mesh:plugMesh(q[0], q[1], GM.d, 1), noSide:true, noIso:true});      // back view only, like the high-rail plugs
     });
+    }
   }
   // T&G: runs between the uprights and between the top and bottom pieces, 1 into the slot of each. The first board loses its tongue and the last board
   // loses its groove, both cut to the same width.
   var n = nT, rip = eE < pitch - 0.005, lastW = eE;
-  var bz0 = zo0 - GM.tgIn, bz1 = (CR && !TPK) ? Math.max(CR.zT(W/2), CR.zT(xo0)) : (TPK ? zrb + GM.railUp : zo1 + GM.tgIn);      // with a topper the top of the T&G goes up into the channel of the high-rail
+  var tgZ = PKT ? GM.railUp : GM.tgIn, bz0 = zo0 - tgZ, bz1 = (CR && !TPK) ? Math.max(CR.zT(W/2), CR.zT(xo0)) : (TPK ? zrb + GM.railUp : zo1 + tgZ);      // with a topper the top of the T&G goes up into the channel of the high-rail
   for(var i=0;i<n;i++){
     var gB = geo[i], firstB = gB.first, lastB = gB.last, ox = gB.ox, vis0 = gB.vis0, vis1 = gB.vis1, cl = gB.cl, cr = gB.cr;
     var bd = {layer:'PICKET', name:'T&G board ' + (i+1), y0:ty0, y1:ty0 + tT, noSide:true, pts:((CR && !TPK) ? crownBoardPts(vis0, vis1, bz0, CR) : rect(vis0, bz0, vis1, bz1)), vg:{c:0.09, l:!firstB, r:false}};
@@ -1176,13 +1452,17 @@ function computePVCGate(s){
     } else bd.prof = tgProfile(vis0, ty0, Math.max(0.5, vis1 - vis0), tT, {noTongue:firstB, noGroove:lastB, e:eT});
     pickets.push(bd);
   }
-  if(isSp){
+  if(PKT){
+    cuts.push({part:'Posts', qty:2, stock:fmt(Pt) + ' x ' + fmt(Pt), length:pkTop + up1, note:'1 below the bottom rail' + (pkTop > H + up1 ? ' and 1 above the tips of the pickets (the end pickets on the crown topper)' : ' and 1 above the top rail')});
+    cuts.push({part:((CR || TPK) ? 'Bottom rail' : 'Top and bottom rails'), qty:((CR || TPK) ? 1 : 2), stock:fmt(GM.railT) + ' x ' + fmt(GM.railH) + ' hollow', length:Wc + 2*GM.railInto, note:'Same rail as the Oklahoma section, ' + fmt(GM.railInto) + ' into each post'});
+    if(TPK && !CR) cuts.push({part:'Top rail', qty:1, stock:fmt(GM.railT) + ' x ' + fmt(topRH) + ' hollow', length:Wc + 2*GM.railInto, note:fmt(GM.railInto) + ' into each post. Cutouts for the topper.'});
+  } else if(isSp){
     cuts.push({part:'Gate Master', qty:1, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:W, note:'Bottom, outside length, 45 degree miters'});
     cuts.push({part:'Gate Rail', qty:1, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:W, note:'Top, outside length, 45 degree miters. ' + spInfo.n + ' cutouts, ' + fmt(GM.spCut) + ' square' + (isOpen ? ', the pickets go through.' : '.')});
   } else cuts.push({part:'Gate Master', qty:2, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:W, note:'Top and bottom, outside length, 45 degree miters'});
-  cuts.push({part:'Gate Master', qty:2, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:H, note:'Left and right, outside length, 45 degree miters'});
+  if(!PKT) cuts.push({part:'Gate Master', qty:2, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:H, note:'Left and right, outside length, 45 degree miters'});
   cuts.push({part:'T&G boards', qty:n, stock:pk.name, length:bz1 - bz0, note:rip ? 'First and last boards cut to ' + fmt(lastW) + ' each' : 'Full boards'});
-  if(CR) cuts.push({part:'Rail plugs', qty:8, stock:fmt(0.75) + ' dia', length:0, note:'Four on the back of each upright, holding the end of the rail'});
+  if(CR && !PKT) cuts.push({part:'Rail plugs', qty:8, stock:fmt(0.75) + ' dia', length:0, note:'Four on the back of each upright, holding the end of the rail'});
   if(CR) cuts.push({part:(CR.flip ? 'Scallop rail' : 'Crown rail'), qty:1, stock:fmt(GM.crownT) + ' x ' + fmt(GM.crownRo - GM.crownRi) + ' hollow', length:Wc, note:'Between the uprights, plumb cut ends, 1 below the top of each upright. Slot ripped in the underside for the T&G. ' + (CR.flip ? 'Low point of the top edge ' : 'Peak ') + fmt(CR.peak) + ' from the bottom.'});
   cuts.push({part:'Plugs', qty:plugs.length, stock:fmt(0.75) + ' dia', length:0, note:'One in each half of each board, along the brace'});
   if(TPK){
@@ -1193,15 +1473,16 @@ function computePVCGate(s){
       cuts.push({part:'Spindle pickets', qty:spInfo.n - 2, stock:fmt(GM.spW) + ' x ' + fmt(GM.spW) + ' hollow', length:spHi, note:'Gap ' + fmt(spInfo.gap) + '. ' + fmt(GM.spCut) + ' square cutouts in the top of the high-rail.' + (isScal ? ' Scallop: the lengths run from ' + fmt(spLo) + ' in the middle to ' + fmt(spHi) + ' next to the ends.' : (isCrnT ? ' Crown: the lengths run from ' + fmt(spLo) + ' next to the ends to ' + fmt(spHi) + ' in the middle.' : ''))});
       cuts.push({part:'Spindle pickets, first and last', qty:2, stock:fmt(GM.spW) + ' x ' + fmt(GM.spW) + ' hollow', length:Hov - 1 - (H - GM.spIn), note:fmt(GM.spEdge) + ' in from each outside edge. They stand in the corner of the Gate Master and Gate Rail.'});
     } else if(isSp) cuts.push({part:'Spindle pickets', qty:spInfo.n, stock:fmt(GM.spW) + ' x ' + fmt(GM.spW) + ' hollow', length:spZ1 - spZ0, note:'Gap ' + fmt(spInfo.gap) + '. ' + fmt(GM.spCut) + ' square cutouts in the top of the high-rail.'});
+    else if(isOE){ /* cut list entries are added with the grid */ }
     else cuts.push({part:TPK + ' lattice', qty:1, stock:fmt(tL) + ' thick', length:lat.x1 - lat.x0, note:'Cut ' + fmt(latH) + ' tall. 1 goes into the slot of each Gate Master.'});
-    cuts.push({part:'High-rail plugs', qty:latPlugs.length, stock:fmt(0.75) + ' dia', length:0, note:'Four on each Gate Master, holding the rail'});
+    if(latPlugs.length) cuts.push({part:'High-rail plugs', qty:latPlugs.length, stock:fmt(0.75) + ' dia', length:0, note:'Four on each Gate Master, holding the rail'});
   }
   return {
     s:s, f:{t:GM.bt, w:xb ? GM.xw : GM.bw}, pk:pk, H:Hov, W:W, frameH:Hov, z0:0, z1:Hov, n:n, nAuto:n, gap:null, alts:[],
     parts:parts, pickets:pickets, cuts:cuts, brace:null, warn:warn, topEdge:Hov, frameLF:0, picketLF:0, lfList:[],
-    mode:'tg', pvc:true, pvcGate:true, crown:(CR ? {peak:CR.peak, zO:CR.zO, zI:CR.zI, name:CR.name} : null), Hs:(CR ? Math.max(Hov + 2*GM.capUp, CR.peak, openTipMax + 0.5) : Hov), xbrace:xb, plugPts:plugs, topper:TPK, top:TPK ? {T:T, zrt:zrt, zrb:zrb, tL:tL, latH:latH, type:TPK, zo1:(CR ? CR.zLow : zo1), hf:H, tipEnd:(openOnRail ? H - GM.crownDrop : null), tipX:W - G - GM.spW/2} : null, Ht:Hov, FW:GM.w, FWb:GM.w, CAPT:0, D:GM.d, tF:0, tT:tT, tB:0, cw:0, cwB:0, Wi:Wc, x0:xo0, dw:false,
+    mode:'tg', pvc:true, pvcGate:true, crown:(CR ? {peak:CR.peak, zO:CR.zO, zI:CR.zI, name:CR.name} : null), Hs:(PKT ? Math.max(Hov, pkTop + GM.capUp, CR ? CR.peak : 0, openTipMax + 0.5) : (CR ? Math.max(Hov + 2*GM.capUp, CR.peak, openTipMax + 0.5) : Hov)), xbrace:xb, plugPts:plugs, oe:oeInfo, pocket:(PKT ? {post:Pt, top:pkTop, topH:topRH} : null), topper:TPK, top:TPK ? {T:T, zrt:zrt, zrb:zrb, tL:tL, latH:latH, type:TPK, zo1:(CR ? CR.zLow : zo1), hf:H, tipEnd:(openOnRail ? H - GM.crownDrop : null), tipX:W - Gx - GM.spW/2} : null, Ht:Hov, FW:Gx, FWb:Gx, CAPT:0, D:Dp, tF:0, tT:tT, tB:0, cw:0, cwB:0, Wi:Wc, x0:xo0, dw:false,
     inner:null, Wc:Wc,
-    depth:{y0:0, y1:GM.d},
+    depth:{y0:0, y1:Dp},
     tg:{pitch:pitch, lastW:lastW, rip:rip, spaces:[], lastSpace:0, midC:[], spaceRanges:[], fSpaces:[], fLastSpace:0, fMidC:[]},
     tgNote: n + ' T&G boards' + (rip ? ', first and last cut to ' + fmt(lastW) : '') + ', ' + plugs.length + ' plugs'
   };
@@ -1422,6 +1703,15 @@ function computeTG(s){
 
 // T&G end profile in the x (across) and y (depth) plane, y = 0 at the front face. P is the width the board covers, the tongue
 // sticks out past the left edge, the groove cuts into the right edge, and both faces have a small chamfer (the V at each joint).
+// PVC T&G boards are drawn with a dark V down the middle and a dark joint at the edge so they read as boards. These bands are wider than the real V and joint
+// so they show at drawing scale (a drawing effect only, not geometry): the V is drawn at least 0.6 wide and the joint at least 0.3.
+function pvcBands(x0, x1, vg){
+  var out = [], vw = 0.6, jw = 0.3;
+  if(vg.l) out.push({a:x0, b:x0 + Math.max(vg.c, jw), v:false});
+  if(vg.r) out.push({a:x1 - Math.max(vg.c, jw), b:x1, v:false});
+  if(vg.m !== undefined){ var w = Math.max(vg.mw || 0.3, vw), mc = x0 + vg.m; out.push({a:mc - w/2, b:mc + w/2, v:true}); }
+  return out;
+}
 function tgProfile(ox, y0, P, t, o){
   o = o || {};
   var c = o.c || 0.125, g = o.g || 0.25, e = o.e || 0.125, a = t/3, b = 2*t/3;
@@ -1608,7 +1898,7 @@ function latDetailDiagSvg(cx, cy, R, wt, target){      // the diagonal lattice: 
 }
 function latDetailSvg(cx, cy, R, wt, target){
   if(wt.diag) return latDetailDiagSvg(cx, cy, R, wt, target);
-  var o = [], LSW = 1.25, gV = wt.gapV, gH = wt.gapH, lblV = fmt(r8(gV)), lblH = fmt(r8(gH)), OUT = '#2a2f33', INKC = '#111';
+  var oeW = !!wt.oe, o = [], LSW = oeW ? GM.spW : 1.25, gV = wt.gapV, gH = wt.gapH, lblV = fmt(r8(gV)), lblH = fmt(r8(gH)), OUT = '#2a2f33', INKC = '#111';      // oeW: the Old English topper, 1 1/2 members
   var size = Math.max(9, R*0.17), st = {size:size, color:DIM_RED, sw:Math.max(0.7, size*0.09)};      // big, bold numbers that grow with the window
   var pH_ = dimParts(lblH, size), pV_ = dimParts(lblV, size), twH = pH_.width, halfSl = gV/2 + LSW;
   var sc = Math.min((2*R*0.62)/Math.max(2*LSW + gV, 2*LSW + gH), (R - 14 - twH)/halfSl);      // pixels per inch, small enough that the label fits beside the slats
@@ -1616,8 +1906,8 @@ function latDetailSvg(cx, cy, R, wt, target){
   o.push('<defs><clipPath id="latdetclip"><circle cx="' + n3(cx) + '" cy="' + n3(cy) + '" r="' + n3(R) + '"/></clipPath></defs>');
   o.push('<circle cx="' + n3(cx) + '" cy="' + n3(cy) + '" r="' + n3(R) + '" fill="#fff"/>');
   o.push('<g clip-path="url(#latdetclip)">');
-  [[yt - w, yt],[yb, yb + w]].forEach(function(yy){ o.push('<rect x="' + n3(x0) + '" y="' + n3(yy[0]) + '" width="' + n3(2*R) + '" height="' + n3(w) + '" fill="#a47d55" stroke="' + OUT + '" stroke-width="1"/>'); });      // the horizontal strips, behind
-  [[xl - w, xl],[xr, xr + w]].forEach(function(xx){ o.push('<rect x="' + n3(xx[0]) + '" y="' + n3(y0) + '" width="' + n3(w) + '" height="' + n3(2*R) + '" fill="#c39765" stroke="' + OUT + '" stroke-width="1"/>'); });      // the vertical slats, in front
+  [[yt - w, yt],[yb, yb + w]].forEach(function(yy){ o.push('<rect x="' + n3(x0) + '" y="' + n3(yy[0]) + '" width="' + n3(2*R) + '" height="' + n3(w) + '" fill="' + (oeW ? '#d3d4cd' : '#a47d55') + '" stroke="' + OUT + '" stroke-width="1"/>'); });      // the horizontal strips, behind
+  [[xl - w, xl],[xr, xr + w]].forEach(function(xx){ o.push('<rect x="' + n3(xx[0]) + '" y="' + n3(y0) + '" width="' + n3(w) + '" height="' + n3(2*R) + '" fill="' + (oeW ? '#f4f4ef' : '#c39765') + '" stroke="' + OUT + '" stroke-width="1"/>'); });      // the vertical slats, in front
   var al = st.size*0.8, ah = st.size*0.14, red = st.color, ps = n3(st.sw);
   o.push('<line x1="' + n3(xl) + '" y1="' + n3(cy) + '" x2="' + n3(xr) + '" y2="' + n3(cy) + '" stroke="' + red + '" stroke-width="' + ps + '"/>', arrowSvg(xl, cy, -1, 0, al, ah, red), arrowSvg(xr, cy, 1, 0, al, ah, red));      // the opening across, between the slats
   o.push('<rect x="' + n3(cx - pV_.width/2 - 2) + '" y="' + n3(cy - st.size*1.05 - pV_.halfH - 1) + '" width="' + n3(pV_.width + 4) + '" height="' + n3(2*pV_.halfH + 2) + '" fill="#fff" fill-opacity="0.9"/>', dimLabelSvg(cx, cy - st.size*1.05, lblV, st.size, red));
@@ -1666,6 +1956,7 @@ function drawing(c){
       {k:'h', xa:0, xb:W, z:zb, fa:0, fb:0, label:fmt(W), side:1},
       {k:'v', x:xl, za:0, zb:H, fa:0, fb:0, label:fmt(H), side:-1}
     ];
+    if(c.ilg) dims.push({k:'v', x:xr + (c.crown ? fs*3.5 : 0), za:c.ilg.showZ0, zb:c.ilg.showZ1, fa:c.ilg.showX, fb:W, label:fmt(c.ilg.show), side:1});      // how much of the picket and cap shows above the top rail
     if(c.topper) dims.push({k:'v', x:xr + (c.crown ? fs*3.5 : 0), za:c.top.zrt, zb:(c.top.tipEnd || H), fa:(c.top.tipEnd ? c.top.tipX : W), fb:W, label:fmt(c.top.T), side:1});
     if(c.crown) dims.push({k:'v', x:xr, za:0, zb:c.crown.peak, fa:W/2, fb:W, label:'\u00b1' + fmt(c.crown.peak), side:1});      // bottom of the gate to the peak of the arch, about      // topper height; the lattice opening is dimensioned on the back view
   }
@@ -1717,10 +2008,15 @@ function svgString(c){
   function vgroove(p){
     var xs = p.pts.map(function(q){ return q[0]; }), zs = p.pts.map(function(q){ return q[1]; });
     var x0 = Math.min.apply(null,xs), x1 = Math.max.apply(null,xs), z0 = Math.min.apply(null,zs), z1 = Math.max.apply(null,zs), cw = p.vg.c;
-    function band(xa, xb){
+    function band(xa, xb, isV){
       var zB = p.zTop ? p.zTop((xa + xb)/2) : z1;
-      out.push('<rect x="'+n3(xa)+'" y="'+n3(-zB)+'" width="'+n3(xb-xa)+'" height="'+n3(zB-z0)+'" fill="#3a2a18" fill-opacity=".24" stroke="#2a2f33" stroke-width="'+(fs*0.03).toFixed(3)+'"/>');
+      if(wood) out.push('<rect x="'+n3(xa)+'" y="'+n3(-zB)+'" width="'+n3(xb-xa)+'" height="'+n3(zB-z0)+'" fill="#3a2a18" fill-opacity=".24" stroke="#2a2f33" stroke-width="'+(fs*0.03).toFixed(3)+'"/>');
+      else {      // PVC: a dark V / joint with a light edge beside it, like the Fusion render
+        out.push('<rect x="'+n3(xa)+'" y="'+n3(-zB)+'" width="'+n3(xb-xa)+'" height="'+n3(zB-z0)+'" fill="#1f2428" fill-opacity="'+(isV ? '.85' : '.65')+'"/>');
+        out.push('<line x1="'+n3(xb)+'" y1="'+n3(-zB)+'" x2="'+n3(xb)+'" y2="'+n3(-z0)+'" stroke="#ffffff" stroke-opacity=".6" stroke-width="'+(fs*0.02).toFixed(3)+'"/>');
+      }
     }
+    if(!wood){ pvcBands(x0, x1, p.vg).forEach(function(bn){ band(bn.a, bn.b, bn.v); }); return; }
     if(p.vg.l) band(x0, x0 + cw);
     if(p.vg.r) band(x1 - cw, x1);
     if(p.vg.m !== undefined) band(x0 + p.vg.m - p.vg.mw/2, x0 + p.vg.m + p.vg.mw/2);
@@ -1732,9 +2028,9 @@ function svgString(c){
       out.push(latDraw(p.lat, mpS, latOutline(p.lat).map(function(q){ return mpS(q[0], q[1]).join(','); }).join(' '), (fs*0.04).toFixed(3), '#e3e5e0', '#2a2f33'));
       return;
     }
-    if(p.layer === 'PICKET') fill = wood ? 'url(#gv)' : '#fdfdfb';
+    if(p.layer === 'PICKET') fill = wood ? 'url(#gv)' : (p.vg ? '#cbccc6' : '#fdfdfb');      // PVC T&G boards are a light gray so they read as boards, not blank white
     else if(p.layer === 'BRACE') fill = wood ? '#b2865a' : '#dfe2dd';
-    else fill = wood ? (p.dir === 'v' ? 'url(#gs)' : 'url(#gh)') : (p.kind === 'cap' ? '#b9bdb6' : (p.kind === 'plug' ? '#f4f4f0' : '#cdd2cb'));
+    else fill = wood ? (p.dir === 'v' ? 'url(#gs)' : 'url(#gh)') : (p.kind === 'cap' ? '#b9bdb6' : (p.kind === 'plug' ? '#f4f4f0' : (p.kind === 'oebar' ? '#fdfdfb' : '#cdd2cb')));
     poly(p, fill, p.layer === 'PICKET' ? 0.07 : 0.06, wood ? (p.layer === 'PICKET' ? '#dcbc92' : (p.dir === 'd' ? null : '#bf935f')) : null);
     if(p.vg) vgroove(p);
     if(p.curves) p.curves.forEach(function(pl){
@@ -2378,13 +2674,13 @@ function isoSvg(c, box, wood){
     });
     if(p.lat){
       var lfs = [];
-      if(vis(Nrm(0,-1,0))){ var lf = mkFace(latOutline(p.lat).map(function(q){ return [q[0], r[0], q[1]]; }), Nrm(0,-1,0), 'f'); lf.lat = p.lat; lf.y = r[0]; lfs.push(lf); }
-      b = {faces:lfs, depth:lfs.length ? lfs[0].depth : 0, y0:r[0], so:0, kind:'lattice', zlo:p.lat.z0, box:boxOf(p, r)};
+      if(vis(Nrm(0,-1,0))){ /* PVC: the part of the lattice inside the rail is not drawn */ var lf = mkFace(latOutline(p.lat).map(function(q){ return [q[0], r[0], (p.lat.zIso !== undefined ? Math.max(q[1], p.lat.zIso) : q[1])]; }), Nrm(0,-1,0), 'f'); lf.lat = p.lat; lf.y = r[0]; lfs.push(lf); }
+      b = {faces:lfs, depth:lfs.length ? lfs[0].depth : 0, y0:r[0], so:(p.lat.zIso !== undefined ? 0.5 : 0), kind:'lattice', zlo:p.lat.z0, box:boxOf(p, r)};
       frame.push(b); return;
     }
     if(p.isoMeshes){      // drawn in layers for the isometric: the part of the Gate Master behind the slot first, then the T&G, then the front lip over it
       p.isoMeshes.forEach(function(im){
-        var bm = facesMesh({mesh:im.mesh}); bm.y0 = im.y0; bm.so = im.so; bm.kind = p.kind;
+        var bm = facesMesh({mesh:im.mesh}); bm.y0 = im.y0; bm.so = im.so; bm.kind = im.kind || p.kind;
         bm.zlo = Math.min.apply(null, p.pts.map(function(q){ return q[1]; })); bm.box = boxOf(p, r); frame.push(bm);
       });
       return;
@@ -2411,7 +2707,7 @@ function isoSvg(c, box, wood){
         var zz = sg.z || p.pts.map(function(q){ return q[1]; });
         b = facesZ({prof:p.prof, z0:Math.min.apply(null,zz), z1:Math.max.apply(null,zz), zf:p.zTop});
       } else b = faces({pts:p.pts, y0:r[0], y1:r[1]});
-      b.y0 = r[0]; b.so = sg.so || 0; b.zlo = Math.min.apply(null, p.pts.map(function(q){ return q[1]; })); b.box = boxOf(p, r); pick.push(b);
+      b.y0 = r[0]; b.so = sg.so || 0; b.zlo = Math.min.apply(null, p.pts.map(function(q){ return q[1]; })); b.box = boxOf(p, r); if(p.vg && c.pvc) b.vgSrc = {vg:p.vg, pts:p.pts, y0:r[0], zTop:p.zTop}; pick.push(b);
     });
   });
   frame.sort(function(a,b){ return b.depth - a.depth; });
@@ -2427,7 +2723,7 @@ function isoSvg(c, box, wood){
   var cx = (minx+maxx)/2, cy = (miny+maxy)/2, by = (box.y0+box.y1)/2;
   var bx = (box.x0+box.x1)/2 - Math.min(box.shift || 0, Math.max(0, ((box.x1-box.x0) - (maxx-minx)*sc)/2));      // box.shift moves the view left, only as far as the free room in the box allows
   ISO_LAST = {box:box, map:function(x, y, z){ var q = P(x, y, z); return [bx + (q[0]-cx)*sc, by - (q[1]-cy)*sc]; }};
-  var basePick = wood ? [224,190,148] : [244,244,240], baseFrame = wood ? [184,138,92] : [226,226,220], out = [];
+  var basePick = wood ? [224,190,148] : [206,207,201], baseFrame = wood ? [184,138,92] : [226,226,220], out = [];
   function draw(list, base0){
     list.forEach(function(bd){
       var base = bd.base || base0;
@@ -2446,11 +2742,20 @@ function isoSvg(c, box, wood){
         out.push('<polygon points="' + f.q.map(function(p){ return (bx + (p[0]-cx)*sc).toFixed(2)+','+(by - (p[1]-cy)*sc).toFixed(2); }).join(' ') +
           '" fill="' + (f.kind === 'o' ? 'none' : col) + '" stroke="' + edge + '" stroke-width="' + (f.sw || (f.kind === 'f' ? 0.6 : 0.4)) + '" stroke-linejoin="round"/>');
       });
+      if(bd.vgSrc){      // PVC T&G: the dark V and joint on the front face, painted right after their own board
+        var vs = bd.vgSrc, vx = vs.pts.map(function(q){ return q[0]; }), vz = vs.pts.map(function(q){ return q[1]; }), vz0 = Math.min.apply(null, vz), vz1 = Math.max.apply(null, vz);
+        var sp3 = function(x, z){ var q = P(x, vs.y0, z); return (bx + (q[0]-cx)*sc).toFixed(2) + ',' + (by - (q[1]-cy)*sc).toFixed(2); };
+        pvcBands(Math.min.apply(null, vx), Math.max.apply(null, vx), vs.vg).forEach(function(bn){
+          var zt = function(x){ return vs.zTop ? vs.zTop(x) : vz1; };
+          out.push('<polygon points="' + [sp3(bn.a, zt(bn.a)), sp3(bn.b, zt(bn.b)), sp3(bn.b, vz0), sp3(bn.a, vz0)].join(' ') + '" fill="#1f2428" fill-opacity="' + (bn.v ? '.85' : '.65') + '"/>');
+          out.push('<line x1="' + sp3(bn.b, zt(bn.b)).split(',')[0] + '" y1="' + sp3(bn.b, zt(bn.b)).split(',')[1] + '" x2="' + sp3(bn.b, vz0).split(',')[0] + '" y2="' + sp3(bn.b, vz0).split(',')[1] + '" stroke="#ffffff" stroke-opacity=".6" stroke-width="0.25"/>');
+        });
+      }
     });
   }
   if(c.mode === 'both' || c.mode === 'tg'){
     // layered builds: one depth sort across every body so each layer paints over the one behind it
-    frame.forEach(function(b){ b.base = (b.kind === 'cap' && !wood) ? [190,193,185] : ((b.kind === 'plug' && !wood) ? [246,246,242] : ((b.kind === 'lattice' && !wood) ? [236,238,233] : ((b.kind === 'slot') ? [96,98,94] : baseFrame))); }); pick.forEach(function(b){ b.base = basePick; });
+    frame.forEach(function(b){ b.base = (b.kind === 'cap' && !wood) ? [190,193,185] : ((b.kind === 'plug' && !wood) ? [246,246,242] : ((b.kind === 'oebar' && !wood) ? [206,207,201] : (b.kind === 'lattice' && !wood) ? [236,238,233] : ((b.kind === 'slot') ? [96,98,94] : baseFrame))); }); pick.forEach(function(b){ b.base = basePick; });
     draw(c.pvc ? baseSort(frame.concat(pick)) : paintOrder(frame.concat(pick)), baseFrame);      // PVC: the parts sit in fixed layers, so stack order is set by hand
   } else { draw(frame, baseFrame); draw(pick, basePick); }
   return out.join('');
@@ -2563,7 +2868,8 @@ function sheetSvg(c, info){
   function fillFor(p){
     if(p.kind === 'cap' && !wood) return {base:'#c0c3bb'};      // PVC caps are a shade darker so they read as their own part
     if(p.kind === 'plug' && !wood) return {base:'#f4f4f0'};
-    if(!wood) return p.layer === 'PICKET' ? {base:'#f6f6f2'} : (p.layer === 'BRACE' ? {base:'#e4e4de'} : {base:'#dcdcd5'});
+    if(!wood && p.kind === 'oebar') return {base:'#f6f6f2'};      // the Old English bars match the uprights
+    if(!wood) return p.layer === 'PICKET' ? {base:(p.vg ? '#cbccc6' : '#f6f6f2')} : (p.layer === 'BRACE' ? {base:'#e4e4de'} : {base:'#dcdcd5'});
     if(p.layer === 'PICKET') return {base:'#dcbc92', pat:'url(#sgv)'};
     if(p.layer === 'BRACE') return {base:'#b2865a'};
     return {base:'#bf935f', pat: p.dir === 'v' ? 'url(#sgs)' : 'url(#sgh)'};
@@ -2587,33 +2893,58 @@ function sheetSvg(c, info){
     if(p.vg){
       var gx = p.pts.map(function(q){ return q[0]; }), gz = p.pts.map(function(q){ return q[1]; });
       var gx0 = Math.min.apply(null,gx), gx1 = Math.max.apply(null,gx), gz0 = Math.min.apply(null,gz), gz1 = Math.max.apply(null,gz);
-      var gband = function(xa, xb){
+      var gband = function(xa, xb, isV){
         var sa = M.X(mirror ? c.W - xa : xa), sb = M.X(mirror ? c.W - xb : xb), top = M.Y(p.zTop ? p.zTop((xa + xb)/2) : gz1);
-        o.push('<rect x="'+n2(Math.min(sa,sb))+'" y="'+n2(top)+'" width="'+n2(Math.abs(sb-sa))+'" height="'+n2(M.Y(gz0)-top)+'" fill="#3a2a18" fill-opacity=".24" stroke="'+STK+'" stroke-width="0.3"/>');
+        if(wood) o.push('<rect x="'+n2(Math.min(sa,sb))+'" y="'+n2(top)+'" width="'+n2(Math.abs(sb-sa))+'" height="'+n2(M.Y(gz0)-top)+'" fill="#3a2a18" fill-opacity=".24" stroke="'+STK+'" stroke-width="0.3"/>');
+        else {      // PVC: a dark V / joint with a light edge beside it, like the Fusion render
+          o.push('<rect x="'+n2(Math.min(sa,sb))+'" y="'+n2(top)+'" width="'+n2(Math.abs(sb-sa))+'" height="'+n2(M.Y(gz0)-top)+'" fill="#1f2428" fill-opacity="'+(isV ? '.85' : '.65')+'"/>');
+          o.push('<line x1="'+n2(Math.max(sa,sb))+'" y1="'+n2(top)+'" x2="'+n2(Math.max(sa,sb))+'" y2="'+n2(M.Y(gz0))+'" stroke="#ffffff" stroke-opacity=".6" stroke-width="0.25"/>');
+        }
       };
+      if(!wood) pvcBands(gx0, gx1, p.vg).forEach(function(bn){ gband(bn.a, bn.b, bn.v); });
+      else {
       if(p.vg.l) gband(gx0, gx0 + p.vg.c);
       if(p.vg.r) gband(gx1 - p.vg.c, gx1);
       if(p.vg.m !== undefined) gband(gx0 + p.vg.m - p.vg.mw/2, gx0 + p.vg.m + p.vg.mw/2);
+      }
     }
   }
   var DST = {size:9.5, color:DIM_RED, sw:0.6};
   // Material specification rows for the Oklahoma / T&G build: letter, size, name, which view the callout goes on, and target points
   var tgRows = [];
-  if(c.mode === 'tg' && c.pvcGate){
+  if(c.ilg){      // Illinois gate: the pickets, the Gate Rail frame, and the X-brace at 48 wide and over
+    var iW = c.W, iHf = c.ilg.Hf, iN = c.ilg.n, iMid = (c.ilg.zo0 + c.ilg.zo1)/2;
+    var addI = function(kind, size, name, view, pts, pref){ tgRows.push({L:String.fromCharCode(65 + tgRows.length), kind:kind, size:size, name:name, view:view, pts:pts, pref:pref}); };
+    var iIdx = [0.3, 0.5, 0.7].map(function(f){ return Math.min(iN - 2, Math.max(1, Math.round((iN - 1)*f))); });
+    addI('spindle', fmt(GM.spW)+' X '+fmt(GM.spW), 'PICKET', 'front', iIdx.map(function(k){ return [c.ilg.xs[k], iMid]; }), 225);
+    addI('frame', fmt(GM.w)+' X '+fmt(GM.d), 'GATE RAIL', 'front', (c.crown ? [[iW*0.7, GM.w/2],[GM.w/2, iHf*0.5],[iW - GM.w/2, iHf*0.4]] : [[iW*0.3, iHf - GM.w/2],[iW*0.7, GM.w/2],[GM.w/2, iHf*0.5]]), 225);
+    if(c.xbrace) addI('brace', fmt(GM.bt)+' X '+fmt(GM.xw), 'X-BRACE', 'back', [], 40);
+    if(c.crown) addI('crown', fmt(GM.crownT)+' X '+fmt(GM.crownRo - GM.crownRi), (c.crown.name === 'scallop' ? 'SCALLOP RAIL' : 'CROWN RAIL'), 'front', [0.3, 0.5, 0.7].map(function(fx){ var xx = iW*fx; return [xx, (c.crown.zO(xx) + c.crown.zI(xx))/2]; }), 270);
+    if(c.crown){ addI('cap', fmt(GM.w), 'TRADITIONAL CAP', 'front', [[GM.w/2, iHf + GM.capUp/2],[iW - GM.w/2, iHf + GM.capUp/2]], 270); tgRows[tgRows.length-1].alsoBack = true; }
+  } else if(c.mode === 'tg' && c.pvcGate){
     var gW = c.W, gH = c.top ? c.top.hf : c.H;      // gH: the top of the frame (with the open spindle topper the pickets and caps stand above it)
     var addG = function(kind, size, name, view, pts, pref){ tgRows.push({L:String.fromCharCode(65 + tgRows.length), kind:kind, size:size, name:name, view:view, pts:pts, pref:pref}); };
     addG('tg', fmt(pk.t)+' X '+fmt(c.tg.pitch), 'T&G', 'front', [[gW*0.4, gH*0.55],[gW*0.5, gH*0.4],[gW*0.6, gH*0.65]], 225);
-    if((c.topper === 'CST' || c.topper === 'OST' || c.topper === 'OSS' || c.topper === 'OSC') && !c.crown){
+    if(c.pocket){
+      addG('post', fmt(c.pocket.post)+' X '+fmt(c.pocket.post), 'POST', 'front', [[c.pocket.post/2, gH*0.5],[gW - c.pocket.post/2, gH*0.5],[c.pocket.post/2, gH*0.3]], 180);
+      if(!c.crown && !c.topper) addG('rail', fmt(GM.railT)+' X '+fmt(GM.railH), 'TOP & BOTTOM RAIL', 'front', [[gW*0.3, gH - GM.railH/2],[gW*0.7, GM.railH/2]], 225);
+      else {
+        addG('rail', fmt(GM.railT)+' X '+fmt(GM.railH), 'BOTTOM RAIL', 'front', [[gW*0.3, GM.railH/2],[gW*0.7, GM.railH/2]], 225);
+        if(!c.crown) addG('rail', fmt(GM.railT)+' X '+fmt(c.pocket.topH), 'TOP RAIL', 'front', [[gW*0.3, gH - c.pocket.topH/2],[gW*0.7, gH - c.pocket.topH/2]], 225);
+      }
+    } else if((c.topper === 'CST' || c.topper === 'OST' || c.topper === 'OSS' || c.topper === 'OSC') && !c.crown){
       addG('frame', fmt(GM.w)+' X '+fmt(GM.d), 'GATE MASTER', 'front', [[gW*0.7, GM.w/2],[GM.w/2, gH*0.4],[gW - GM.w/2, gH*0.4]], 225);
       addG('frame', fmt(GM.w)+' X '+fmt(GM.d), 'GATE RAIL', 'front', [[gW*0.3, gH - GM.w/2],[gW*0.7, gH - GM.w/2]], 225);
     } else addG('frame', fmt(GM.w)+' X '+fmt(GM.d), 'GATE MASTER', 'front', (c.crown ? [[gW*0.7, GM.w/2],[GM.w/2, gH*0.5],[gW - GM.w/2, gH*0.5]] : [[gW*0.3, gH - GM.w/2],[gW*0.7, GM.w/2],[GM.w/2, gH*0.5]]), 225);
     addG('brace', fmt(GM.bt)+' X '+fmt(c.xbrace ? GM.xw : GM.bw), c.xbrace ? 'X-BRACE' : 'SUPPORT', 'back', [], 40);
     if(c.crown) addG('crown', fmt(GM.crownT)+' X '+fmt(GM.crownRo - GM.crownRi), (c.crown.name === 'scallop' ? 'SCALLOP RAIL' : 'CROWN RAIL'), 'front', [0.3, 0.5, 0.7].map(function(fx){ var xx = gW*fx; return [xx, (c.crown.zO(xx) + c.crown.zI(xx))/2]; }), 270);
-    if(c.crown){ addG('cap', fmt(GM.w), 'TRADITIONAL CAP', 'front', [[GM.w/2, gH + GM.capUp/2],[gW - GM.w/2, gH + GM.capUp/2]], 270); tgRows[tgRows.length-1].alsoBack = true; }
+    if(c.pocket){ addG('cap', fmt(c.pocket.post), 'TRADITIONAL CAP', 'front', [[c.pocket.post/2, c.pocket.top + GM.capUp/2],[gW - c.pocket.post/2, c.pocket.top + GM.capUp/2]], 270); tgRows[tgRows.length-1].alsoBack = true; }
+    else if(c.crown){ addG('cap', fmt(GM.w), 'TRADITIONAL CAP', 'front', [[GM.w/2, gH + GM.capUp/2],[gW - GM.w/2, gH + GM.capUp/2]], 270); tgRows[tgRows.length-1].alsoBack = true; }
     if(c.topper){
       addG('rail', fmt(GM.railT)+' X '+fmt(GM.railH), 'HIGH RAIL', 'front', [[gW*0.22, c.top.zrb + 3],[gW*0.5, c.top.zrb + 3],[gW*0.78, c.top.zrb + 3]], 180);
-      if(c.topper === 'CST' || c.topper === 'OST' || c.topper === 'OSS' || c.topper === 'OSC') addG('spindle', '', ({OST:'OPEN SPINDLE TOPPER', OSS:'OPEN SPINDLE SCALLOP TOPPER', OSC:'OPEN SPINDLE CROWN TOPPER', CST:'CLOSED SPINDLE TOPPER'}[c.topper]), 'front', [[gW*0.35, (c.top.zrt + c.top.zo1)/2],[gW*0.5, (c.top.zrt + c.top.zo1)/2],[gW*0.65, (c.top.zrt + c.top.zo1)/2]], 45);
-      else addG('lattice', '', ({MDL:'MINI DIAGONAL LATTICE', DDL:'DELUXE DIAGONAL LATTICE', MSL:'MINI SQUARE LATTICE', DSL:'DELUXE SQUARE LATTICE'}[c.topper]), 'front', [[gW*0.35, (c.top.zrt + (c.crown ? c.top.zo1 : gH - GM.w))/2],[gW*0.5, (c.top.zrt + (c.crown ? c.top.zo1 : gH - GM.w))/2],[gW*0.65, (c.top.zrt + (c.crown ? c.top.zo1 : gH - GM.w))/2]], 45);
+      if(c.topper === 'OEN') addG('lattice', '', 'OLD ENGLISH TOPPER', 'front', [0.3, 0.5, 0.7].map(function(f){ var k = Math.min(c.oe.nUp - 1, Math.max(0, Math.round((c.oe.nUp - 1)*f))); return [c.oe.xs[k], (c.top.zrt + c.top.zo1)/2]; }), 45);
+      else if(c.topper === 'CST' || c.topper === 'OST' || c.topper === 'OSS' || c.topper === 'OSC') addG('spindle', '', ({OST:'OPEN SPINDLE TOPPER', OSS:'OPEN SPINDLE SCALLOP TOPPER', OSC:'OPEN SPINDLE CROWN TOPPER', CST:'CLOSED SPINDLE TOPPER'}[c.topper]), 'front', [[gW*0.35, (c.top.zrt + c.top.zo1)/2],[gW*0.5, (c.top.zrt + c.top.zo1)/2],[gW*0.65, (c.top.zrt + c.top.zo1)/2]], 45);
+      else addG('lattice', '', ({MDL:'MINI DIAGONAL LATTICE', DDL:'DELUXE DIAGONAL LATTICE', MSL:'MINI SQUARE LATTICE', DSL:'DELUXE SQUARE LATTICE'}[c.topper]), 'front', [[gW*0.35, (c.top.zrt + (c.crown || c.pocket ? c.top.zo1 : gH - GM.w))/2],[gW*0.5, (c.top.zrt + (c.crown || c.pocket ? c.top.zo1 : gH - GM.w))/2],[gW*0.65, (c.top.zrt + (c.crown || c.pocket ? c.top.zo1 : gH - GM.w))/2]], 45);
     }
   } else if(c.mode === 'tg' && c.pvc){
     var pH = c.H, pW = c.W, pMid = c.z0 + (c.z1 - c.z0)/2;
@@ -2722,7 +3053,11 @@ function sheetSvg(c, info){
     if(c.pvc && !c.pvcGate) o.push(dimH(BM.X(c.inner.x0), BM.X(c.inner.x1), BM.Y(-d.fs*4), fmt(c.inner.x1 - c.inner.x0), BM.Y(0), BM.Y(0), stB, 1));
     else o.push(dimH(bx0, bx1, BM.Y(-d.fs*4), fmt(c.W), BM.Y(0), BM.Y(0), stB, 1));
     if(c.inner && !c.pvc) o.push(dimH(BM.X(c.inner.x0), BM.X(c.inner.x1), BM.Y(-d.fs*1.8), fmt(c.inner.x1 - c.inner.x0), BM.Y(0), BM.Y(0), stB, 1));
-    if(c.pvcGate && c.topper){      // gate with a topper: the opening under the top of the frame (never the overall height here), and for the open spindles how much of the picket and cap shows above the Gate Rail
+    if(c.ilg){      // Illinois gate: how much picket and cap shows above the top rail, and the frame under it
+      o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(c.ilg.showZ1), BM.Y(c.ilg.showZ0), fmt(c.ilg.show), bx1, bx1, stB, 1));
+      o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(c.ilg.showZ0), BM.Y(0), fmt(c.ilg.showZ0), bx1, bx1, stB, 1));
+    }
+    else if(c.pvcGate && c.topper){      // gate with a topper: the opening under the top of the frame (never the overall height here), and for the open spindles how much of the picket and cap shows above the Gate Rail
       o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(c.top.zo1), BM.Y(c.top.zrt), fmt(c.top.zo1 - c.top.zrt), bx1, bx1, stB, 1));
       if((c.topper === 'OST' || c.topper === 'OSS' || c.topper === 'OSC') && !c.crown) o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(c.H), BM.Y(c.top.hf), fmt(c.H - c.top.hf), bx1, bx1, stB, 1));
     }
@@ -2833,12 +3168,13 @@ function sheetSvg(c, info){
   });
   // ---- iso view ----
   var isoBox = {alt:{x0:Ix0 + 20, x1:752, y0:190, y1:538}, shift:45, x0:Ix0 + 12, x1:908, y0:(c.mode === 'tg' ? Math.max(240, 64 + tgRows.length*(tgRows.length > 6 ? 30 : 34)) : 198), y1:540};
-  var winOn = !!(c.wtop && dimsOn);      // lattice detail window: it takes the open space at the top beside the specification table, so the isometric stays below the table
+  var winOn = !!((c.wtop || c.oe) && dimsOn);      // lattice detail window: it takes the open space at the top beside the specification table, so the isometric stays below the table
   if(winOn) delete isoBox.alt;
   o.push(isoSvg(c, isoBox, wood));
   if(winOn && ISO_LAST){      // the openings enlarged, with a line to the lattice on the isometric
     var wTop = (frontOff || backOff || sideOff) ? 36 : 16, wAvW = 758 - (Ix0 + 10), wAvH = isoBox.y0 - 6 - wTop, RRw = Math.max(40, Math.min(80, wAvW/2 - 2, wAvH/2));
-    o.push(latDetailSvg(Ix0 + 10 + wAvW/2, wTop + RRw, RRw, c.wtop, ISO_LAST.map(c.x0 + c.Wi*0.3, 0, c.wtop.z0 + c.wtop.T*0.5)));
+    if(c.wtop) o.push(latDetailSvg(Ix0 + 10 + wAvW/2, wTop + RRw, RRw, c.wtop, ISO_LAST.map(c.x0 + c.Wi*0.3, 0, c.wtop.z0 + c.wtop.T*0.5)));
+    else o.push(latDetailSvg(Ix0 + 10 + wAvW/2, wTop + RRw, RRw, {oe:true, gapV:c.oe.gapX, gapH:c.oe.gapZ}, ISO_LAST.map(c.oe.xs[Math.floor(c.oe.nUp/3)], GM.d/2 - GM.spW/2, (c.top.zrt + c.oe.zTop)/2)));
   }
 
   // ---- material specification table ----
@@ -2859,7 +3195,7 @@ function sheetSvg(c, info){
     var y = 56 + i*RH;
     if(i) ln(766, y, 920, y, 1);
     tx(781.5, y + RH/2 + 6, r.L, 18, BLUE, 'middle');
-    if(r.name.length > 18){      // a long name (the lattice) goes on two lines, in a smaller size, so it stays inside the box
+    if(r.name.length >= 18){      // a long name (the lattice) goes on two lines, in a smaller size, so it stays inside the box
       var sp = -1, best = 1e9, si;
       for(si=0; si<r.name.length; si++) if(r.name.charAt(si) === ' '){ var mx = Math.max(si, r.name.length - si - 1); if(mx < best){ best = mx; sp = si; } }      // split where the two lines come out closest in length
       var nm1 = sp > 0 ? r.name.slice(0, sp) : r.name, nm2 = sp > 0 ? r.name.slice(sp + 1) : '';
@@ -2978,22 +3314,26 @@ if(typeof document !== 'undefined'){
   state.count = null;                                      // the picket count options lived in the cut list panel, so it is always automatic now
   state.so = ''; state.notes = ''; state.drawn = '';     // these belong to one job, so they start empty
 
+  var presetFs = null;
   var SEGS = [
     {key:'material', label:'Material', choices:[['wood','Wood'],['pvc','PVC']]},
     {key:'kind', label:'Build', choices:[['fence','Fence'],['gate','Gate']]},
     {key:'sides', label:'Sides', choices:[['single','Single sided'],['double','Double sided']]},
-    {key:'dstyle', label:'Double sided style', choices:[['both','Pickets both sides'],['tg','T&G (Oklahoma)']], when:function(){ return state.sides === 'double'; }},
+    {key:'dstyle', label:'Double sided style', choices:[['both','Pickets both sides'],['tg','T&G (Oklahoma)'],['ilg','ILG-CUS<small>(Illinois gate)</small>']], when:function(){ return state.sides === 'double'; }},
     {key:'align', label:'Back pickets', choices:[['aligned','Directly behind'],['stagger','Staggered in the gaps']], when:function(){ return state.sides === 'double' && state.dstyle === 'both'; }},
-    {key:'topper', label:'Topper', choices:[['none','None'],['MDL','Mini diagonal lattice (MDL)'],['DDL','Deluxe diagonal lattice (DDL)'],['MSL','Mini square lattice (MSL)'],['DSL','Deluxe square lattice (DSL)'],['CST','Closed spindle topper'],['OST','Open spindle topper'],['OSS','Open spindle scallop topper'],['OSC','Open spindle crown topper']], when:function(){ return pvcGateOn(); }},
+    {key:'pframe', label:'Frame', choices:[['gm','Gate Master frame'],['pocket','Pocket frame']], when:function(){ return pvcGateOn(); }},
+    {key:'ppost', label:'Post size', choices:[['5','5x5 post'],['4','4x4 post']], when:function(){ return pvcGateOn() && state.pframe === 'pocket'; }},
+    {key:'topper', label:'Topper', choices:[['none','None'],['MDL','Mini diagonal lattice (MDL)'],['DDL','Deluxe diagonal lattice (DDL)'],['MSL','Mini square lattice (MSL)'],['DSL','Deluxe square lattice (DSL)'],['CST','Closed spindle topper'],['OST','Open spindle topper'],['OSS','Open spindle scallop topper'],['OSC','Open spindle crown topper'],['OEN','Old English topper']], when:function(){ return pvcGateOn(); }},
     {key:'wTopper', label:'Topper', choices:[['none','None'],['SQL','Square lattice topper'],['DGL','Diagonal lattice topper']], when:function(){ return woodGateTgOn(); }},
-    {key:'topRail', label:'Top rail', choices:[['none','None'],['CROWN','Crown rail'],['SCALLOP','Scallop rail']], when:function(){ return pvcGateOn(); }},
-    {key:'frame', label:'Framing', choices:[['2x3','2x3'],['2x4','2x4'],['2x6','2x6'],['dowel','2x3 Dowel Rail'],['dowel4','2x4 Dowel Rail']], when:function(){ return !tgFenceOn() && !pvcGateOn(); }},
+    {key:'topRail', label:'Top rail', choices:[['none','None'],['CROWN','Crown rail'],['SCALLOP','Scallop rail']], when:function(){ return pvcGateOn() || ilgOn(); }},
+    {key:'frame', label:'Framing', choices:[['2x3','2x3'],['2x4','2x4'],['2x6','2x6'],['dowel','2x3 Dowel Rail'],['dowel4','2x4 Dowel Rail']], when:function(){ return !tgFenceOn() && !pvcGateOn() && !ilgOn(); }},
     {key:'midrail', label:'Middle rail (frame over 48")', choices:[['on','Add it'],['off','Leave it off']], when:function(){ return state.kind === 'fence' && !tgFenceOn() && (state.height - state.top - state.bottom) > 48; }},
     {key:'fascia', label:'Front fascia', choices:[['1x4','1x4'],['1x6','1x6'],['2x4','2x4'],['2x6','2x6']], when:function(){ return tgFenceOn() && !pvcOK(); }},
     {key:'back', label:'Back rails', choices:[['1x4','1x4'],['1x6','1x6'],['2x4','2x4'],['2x6','2x6'],['dowel','2x3 Dowel Rail'],['dowel4','2x4 Dowel Rail']], when:function(){ return tgFenceOn() && !pvcOK(); }}
   ];
   function tgFenceOn(){ return state.sides === 'double' && state.dstyle === 'tg' && state.kind === 'fence'; }
   function pvcGateOn(){ return state.sides === 'double' && state.dstyle === 'tg' && state.kind === 'gate' && state.material === 'pvc'; }       // PVC Oklahoma gate: Gate Master frame, T&G, braces and plugs
+  function ilgOn(){ return state.sides === 'double' && state.dstyle === 'ilg' && state.kind === 'gate' && state.material === 'pvc'; }       // PVC Illinois gate: Gate Rail frame and spindle pickets
   function woodGateTgOn(){ return state.sides === 'double' && state.dstyle === 'tg' && state.kind === 'gate' && state.material === 'wood'; }       // wood Oklahoma gate: the open area at the top takes a topper
   function pvcOK(){ return tgFenceOn() && state.material === 'pvc'; }       // PVC Oklahoma fence: posts, rails, 7811TG, LUC and caps
   var DIMS = [
@@ -3002,6 +3342,7 @@ if(typeof document !== 'undefined'){
     {key:'gap', label:'Space between pickets', hint:'About. The app picks a whole number of pickets and shows the exact gap.', min:0, max:12},
     {key:'top', label:'Top show', hint:'Picket above the top frame member', min:0, max:60},
     {key:'bottom', label:'Bottom show', hint:'Picket below the bottom frame member', min:0, max:60},
+    {key:'ilShow', label:'Pickets show', hint:'Top of the top Gate Rail up to the tip of the cap', min:3, max:60},
     {key:'topperH', label:'Topper height', hint:'Top of the gate down to the top of the 2x6 high-rail', min:6, max:60},
     {key:'latSp', label:'Lattice spacing', hint:'The opening between strips, across and up and down. The closest whole number of strips is used.', min:0.5, max:12}
   ];
@@ -3027,6 +3368,7 @@ if(typeof document !== 'undefined'){
   SEGS.forEach(function(g){
     var fs = radioGroup(g.key, g.label, g.choices, state[g.key], el('segs'));
     segFs[g.key] = fs;
+    if(g.key === 'dstyle'){ var dsg = fs.querySelector('.seg'); if(dsg) dsg.classList.add('tall'); }
     if(g.key === 'topper'){ var tsg = fs.querySelector('.seg'); if(tsg) tsg.classList.add('wrap'); }      // six choices with long names: wrap them into rows
     fs.addEventListener('change', function(e){
       state[g.key] = e.target.value;
@@ -3114,6 +3456,73 @@ if(typeof document !== 'undefined'){
     el('viewSeg').addEventListener('change', function(e){ state.view = e.target.value; update(true); });
   })();
 
+  /* ---------- presets (shown once Double sided is chosen): every option plus height, width and gap ---------- */
+  var PKEY = 'aii_gate_presets_v1';
+  var PRESET_SKIP = {so:1, notes:1, drawn:1, count:1, hiddenDims:1, view:1, copy:1, sheetDims:1};      // job details and display choices are not part of a preset
+  var presets = [];
+  try{ var pj = JSON.parse(localStorage.getItem(PKEY) || '[]'); if(Array.isArray(pj)) presets = pj.filter(function(q){ return q && typeof q.name === 'string' && q.data && typeof q.data === 'object'; }); }catch(e){}
+  function savePresets(){ try{ localStorage.setItem(PKEY, JSON.stringify(presets)); }catch(e){} }
+  presetFs = document.createElement('fieldset');
+  presetFs.innerHTML = '<legend>Presets</legend><div class="prbtns" id="presetBtns"></div>' +
+    '<div class="prsave"><input type="text" id="presetName" maxlength="40" placeholder="Preset name"><button type="button" data-pa="save">Save current</button></div>' +
+    '<p class="hint">Saves every option plus the height, width and space between pickets.</p>' +
+    '<button type="button" class="linkish" data-pa="dl">Download presets</button> &nbsp; <button type="button" class="linkish" data-pa="ld">Load presets</button>' +
+    '<input type="file" id="presetFile" accept=".json,application/json" style="display:none">';
+  segFs.dstyle.parentNode.insertBefore(presetFs, segFs.dstyle.nextSibling);      // right under the Double sided style row
+  function sameStyle(a, b){ return a.material === b.material && a.kind === b.kind && a.dstyle === b.dstyle; }      // a preset belongs to the build and style it was saved under
+  function renderPresetBtns(){
+    var host = presetFs.querySelector('#presetBtns'); if(!host) return;
+    var lg = presetFs.querySelector('legend'); if(lg) lg.textContent = (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'tg') ? 'OKG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'ilg') ? 'ILG-CUS presets' : 'Presets';
+    var h = '';
+    presets.forEach(function(q, i){
+      if(!sameStyle(q.data, state)) return;
+      h += '<span class="prchip"><button type="button" data-pa="use" data-i="'+i+'">'+esc(q.name)+'</button><button type="button" class="prx" data-pa="del" data-i="'+i+'" title="Delete preset" aria-label="Delete preset '+esc(q.name)+'">&times;</button></span>';
+    });
+    host.innerHTML = h || '<span class="hint" style="margin:0">No presets yet for this style. Set the options and sizes, name them below and save.</span>';
+  }
+  function applyPreset(q){
+    Object.keys(q.data).forEach(function(k){ if(DEFAULTS[k] !== undefined && !PRESET_SKIP[k]) state[k] = JSON.parse(JSON.stringify(q.data[k])); });
+    state.count = null;
+    SEGS.forEach(function(g){ var i = segFs[g.key].querySelector('input[value="' + state[g.key] + '"]'); if(i) i.checked = true; });
+    ['hinge', 'brace'].forEach(function(k){ var i = qsAny('input[name=' + k + '][value="' + state[k] + '"]'); if(i) i.checked = true; });
+    [fmidBox, midBox2, pmidBox, rmidBox].forEach(function(b){ b.render(); });
+    renderPickets();
+    update();
+  }
+  presetFs.addEventListener('click', function(e){
+    var b = e.target.closest('button[data-pa]'); if(!b) return;
+    var act = b.dataset.pa, i = +b.dataset.i;
+    if(act === 'use' && presets[i]) applyPreset(presets[i]);
+    else if(act === 'del' && presets[i]){ if(window.confirm('Delete the preset ' + presets[i].name + '?')){ presets.splice(i, 1); savePresets(); renderPresetBtns(); } }
+    else if(act === 'save'){
+      var inp = presetFs.querySelector('#presetName'), nm = (inp.value || '').trim(); if(!nm){ inp.focus(); return; }
+      var data = {}; Object.keys(DEFAULTS).forEach(function(k){ if(!PRESET_SKIP[k]) data[k] = JSON.parse(JSON.stringify(state[k])); });
+      var at = -1; presets.forEach(function(q, qi){ if(q.name.toLowerCase() === nm.toLowerCase() && sameStyle(q.data, state)) at = qi; });
+      if(at >= 0){ if(!window.confirm('Replace the preset ' + presets[at].name + ' with the current options?')) return; presets[at] = {name:presets[at].name, data:data}; }
+      else presets.push({name:nm, data:data});
+      savePresets(); renderPresetBtns(); inp.value = '';
+    }
+    else if(act === 'dl') download('aii-gate-presets.json', JSON.stringify(presets, null, 1), 'application/json');
+    else if(act === 'ld') presetFs.querySelector('#presetFile').click();
+  });
+  presetFs.querySelector('#presetFile').addEventListener('change', function(e){
+    var f = e.target.files && e.target.files[0]; if(!f) return;
+    var r = new FileReader();
+    r.onload = function(){
+      try{
+        var arr = JSON.parse(r.result); if(!Array.isArray(arr)) throw 0;
+        arr.forEach(function(q){
+          if(!q || typeof q.name !== 'string' || !q.data || typeof q.data !== 'object') return;
+          var at = -1; presets.forEach(function(x, xi){ if(x.name.toLowerCase() === q.name.toLowerCase()) at = xi; });
+          if(at >= 0) presets[at] = {name:q.name, data:q.data}; else presets.push({name:q.name, data:q.data});
+        });
+        savePresets(); renderPresetBtns();
+      }catch(err){ window.alert('That file is not a presets file.'); }
+    };
+    r.readAsText(f); e.target.value = '';
+  });
+  renderPresetBtns();
+
   /* ---------- drawing sheet details ---------- */
   var LOGOKEY = 'aii_sheet_logo_v1', logoData = null;
   try{ logoData = localStorage.getItem(LOGOKEY); }catch(e){}
@@ -3184,6 +3593,7 @@ if(typeof document !== 'undefined'){
   function sizeText(d){ return d.stock + ', ' + fmt(d.w) + ' x ' + fmt(d.t); }
 
   function renderPickets(){
+    if(ilgOn()){ el('picketHost').innerHTML = ''; return; }      // the Illinois gate has its own fixed 1 1/2 spindle pickets, nothing to pick
     var tgMode = state.sides === 'double' && state.dstyle === 'tg';
     var list = listPickets(state.material, tgMode ? 'tg' : undefined);
     if(!list.some(function(d){ return d.key === state.style; })) state.style = list.length ? list[0].key : picketDef('').key;
@@ -3367,6 +3777,18 @@ if(typeof document !== 'undefined'){
   function syncUI(){
     var tgMode = state.sides === 'double' && state.dstyle === 'tg', tgFence = tgMode && state.kind === 'fence';
     SEGS.forEach(function(g){ if(g.when) segFs[g.key].style.display = g.when() ? '' : 'none'; });
+    if(presetFs) presetFs.style.display = state.sides === 'double' ? '' : 'none';      // presets are offered once Double sided is chosen
+    // a PVC gate's Oklahoma style is the code OKG-CUS with its description under it; the other builds keep the plain name
+    var tgIn = segFs.dstyle && segFs.dstyle.querySelector('input[value="tg"]');
+    if(tgIn && tgIn.nextElementSibling){
+      var tgSp = tgIn.nextElementSibling, tgWant = (state.material === 'pvc' && state.kind === 'gate') ? 'code' : 'plain';
+      if(tgSp.dataset.lab !== tgWant){ tgSp.dataset.lab = tgWant; tgSp.innerHTML = tgWant === 'code' ? 'OKG-CUS<small>(Oklahoma gate)</small>' : 'T&amp;G (Oklahoma)'; }
+    }
+    // ILG-CUS is only for a PVC gate: hide its button elsewhere, and a build that had it falls back to T&G (Oklahoma)
+    var ilgIn = segFs.dstyle && segFs.dstyle.querySelector('input[value="ilg"]'), ilgOk = state.material === 'pvc' && state.kind === 'gate';
+    if(ilgIn) (ilgIn.closest('label') || ilgIn.parentNode).style.display = ilgOk ? '' : 'none';
+    if(state.dstyle === 'ilg' && !ilgOk){ state.dstyle = 'tg'; var tgBack = segFs.dstyle.querySelector('input[value="tg"]'); if(tgBack) tgBack.checked = true; renderPickets(); }
+    if(presetFs) renderPresetBtns();
     // Framing is the normal 2x3 / 2x4 / 2x6 choice; an older saved 1x4 or 1x6 falls back to 2x4
     // The dowel rail is fence only: hide it on gates, and a gate that had it falls back to 2x4
     ['frame','back'].forEach(function(k){ ['dowel','dowel4'].forEach(function(dk){ var di = segFs[k] && segFs[k].querySelector('input[value="'+dk+'"]'); if(di) (di.closest('label') || di.parentNode).style.display = state.kind === 'gate' ? 'none' : ''; }); });
@@ -3381,19 +3803,20 @@ if(typeof document !== 'undefined'){
     fmidBox.fs.style.display = (tgMode && !pvcNow && !pvcG) ? '' : 'none';
     rmidBox.fs.style.display = (!tgMode && state.kind === 'fence') ? '' : 'none';
     pmidBox.fs.style.display = pvcNow ? '' : 'none';
-    ['gap','top','bottom'].forEach(function(k){ inputs[k].parentNode.style.display = tgMode ? 'none' : ''; });
+    ['gap','top','bottom'].forEach(function(k){ inputs[k].parentNode.style.display = (tgMode || ilgOn()) ? 'none' : ''; });
     // with a crown or scallop rail the open spindle scallop and crown toppers are not offered (the rail has its own curve); a gate that had it falls back to the open spindle topper
     var railNow = pvcG && state.topRail !== 'none';
     ['OSS', 'OSC'].forEach(function(ok){ var oi = segFs.topper.querySelector('input[value="' + ok + '"]'); if(oi) (oi.closest('label') || oi.parentNode).style.display = railNow ? 'none' : ''; });
     if(railNow && (state.topper === 'OSS' || state.topper === 'OSC')){ state.topper = 'OST'; var ostIn = segFs.topper.querySelector('input[value="OST"]'); if(ostIn) ostIn.checked = true; }
     var woodG = woodGateTgOn(), woodTop = woodG && state.wTopper !== 'none';
+    inputs.ilShow.parentNode.style.display = ilgOn() ? '' : 'none';
     inputs.topperH.parentNode.style.display = ((pvcG && state.topper !== 'none') || woodTop) ? '' : 'none';
-    inputs.latSp.parentNode.style.display = woodTop ? '' : 'none';
-    inputs.latSp.parentNode.querySelector('.hint').textContent = state.wTopper === 'DGL' ? 'The opening between parallel strips, measured square to the strips. The sheet is made at this spacing, then cut to the topper size.' : 'The opening between strips, across and up and down. The closest whole number of strips is used.';
+    inputs.latSp.parentNode.style.display = (woodTop || (pvcG && state.topper === 'OEN')) ? '' : 'none';
+    inputs.latSp.parentNode.querySelector('.hint').textContent = state.wTopper === 'DGL' ? 'The opening between parallel strips, measured square to the strips. The sheet is made at this spacing, then cut to the topper size.' : (pvcG ? 'The opening between the uprights and between the bars. The closest whole number of each is used.' : 'The opening between strips, across and up and down. The closest whole number of strips is used.');
     inputs.topperH.parentNode.querySelector('.hint').textContent = woodTop ? 'Lattice only: the bottom of the bottom strip to the top of the top strip. The 3/4 ledge under it is extra.' : (state.topper === 'OST' && state.topRail !== 'none' && state.width >= GM.crownMin && state.width <= GM.crownMax) ? 'Top of the picket next to the upright down to the top of the 2x6 high-rail' : 'Top of the gate down to the top of the 2x6 high-rail';
-    inputs.height.parentNode.querySelector('.hint').textContent = pvcNow ? 'Rail to rail, top and bottom. The posts are 4 taller.' : (pvcG ? 'Overall, outside to outside' : (tgMode ? 'Overall, not counting the cap board' : DIMS[0].hint));
+    inputs.height.parentNode.querySelector('.hint').textContent = pvcNow ? 'Rail to rail, top and bottom. The posts are 4 taller.' : (pvcG ? (state.pframe === 'pocket' ? ((state.topper === 'OST' || state.topper === 'OSS') ? 'To the tip of the pickets. The posts are 2 taller, 1 above and 1 below.' : (state.topper === 'OSC') ? 'To the tip of the tallest pickets. The posts stand 1 above the end pickets and 1 below the bottom rail.' : 'Rail to rail. The posts are 2 taller, 1 above and 1 below.') : 'Overall, outside to outside') : (ilgOn() ? 'Overall, to the tip of the pyramid caps' : (tgMode ? 'Overall, not counting the cap board' : DIMS[0].hint)));
     var wHint = inputs.width.parentNode.querySelector('.hint'); wHint.style.color = '';
-    wHint.textContent = pvcNow ? 'Space between the posts. The rails are 4 longer.' : ((pvcG && state.topRail !== 'none' && state.topper === 'none') ? 'Outside to outside. The ' + (state.topRail === 'SCALLOP' ? 'scallop' : 'crown') + ' rail is only made for gates ' + fmt(GM.crownMin) + ' to ' + fmt(GM.crownMax) + ' wide.' : 'Outside to outside');
+    wHint.textContent = pvcNow ? 'Space between the posts. The rails are 4 longer.' : (pvcG && state.pframe === 'pocket') ? 'Outside to outside of the posts.' : ((ilgOn() && state.topRail !== 'none') ? 'Outside to outside. The ' + (state.topRail === 'SCALLOP' ? 'scallop' : 'crown') + ' rail is only made for gates ' + fmt(GM.crownMin) + ' to ' + fmt(GM.crownMax) + ' wide.' : (pvcG && state.topRail !== 'none' && state.topper === 'none') ? 'Outside to outside. The ' + (state.topRail === 'SCALLOP' ? 'scallop' : 'crown') + ' rail is only made for gates ' + fmt(GM.crownMin) + ' to ' + fmt(GM.crownMax) + ' wide.' : 'Outside to outside');
   }
   function update(fromTyping){
     syncUI();
@@ -3408,7 +3831,7 @@ if(typeof document !== 'undefined'){
     if(c.rl){ var rh = el(rmidBox.hint); if(rh) rh.textContent = 'Spaces are measured between the rails, from the top rail down. Last space, to the bottom rail: ' + fmt(c.rl.lastSpace); }
     el('lb_width').textContent = state.kind === 'gate' ? 'Gate width' : 'Section width';
     el('btnStepAsm').textContent = state.kind === 'gate' ? 'Full gate' : 'Full fence section';
-    el('gateOnly').style.display = (state.kind === 'gate' && !pvcGateOn()) ? '' : 'none';
+    el('gateOnly').style.display = (state.kind === 'gate' && !pvcGateOn() && !ilgOn()) ? '' : 'none';
     el('preview').innerHTML = svgString(c);
     el('preview').classList.toggle('is-hidden', state.view === 'sheet');
     el('sheet').classList.toggle('is-hidden', state.view !== 'sheet');
@@ -3417,7 +3840,7 @@ if(typeof document !== 'undefined'){
     el('warn').innerHTML = c.warn.map(function(w){ return '<p>'+w+'</p>'; }).join('');
     var mat = state.material === 'wood' ? 'Wood' : 'PVC';
     var sum = mat + ' ' + (state.kind === 'gate' ? 'gate' : 'fence section') + ', ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' +
-      (c.mode === 'tg' ? 'Oklahoma T&G, ' + c.pk.name + ' boards' + (c.topper ? ', ' + ({CST:'closed spindle', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : ', crown rail') : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + ', ' + c.pk.name + ' pickets' + (c.mode === 'both' ? ', both sides' : ''));
+      (c.ilg ? 'Illinois gate, spindle pickets' + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : ', crown rail') : '') : c.mode === 'tg' ? 'Oklahoma T&G' + (c.pocket ? ' pocket' : '') + ', ' + c.pk.name + ' boards' + (c.topper ? ', ' + ({CST:'closed spindle', OEN:'old English', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : ', crown rail') : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + ', ' + c.pk.name + ' pickets' + (c.mode === 'both' ? ', both sides' : ''));
     el('summary').textContent = sum;
     el('printmeta').textContent = 'AII ' + sum + '  (' + new Date().toLocaleDateString() + ')';
     try{
