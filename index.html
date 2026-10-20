@@ -1206,6 +1206,7 @@ function computePVCGate(s){
         var trl = {outer:rect(pry0, H - topRH, pry1, H), holes:[rect(pry0 + GM.wall, H - topRH + GM.wall, pry1 - GM.wall, H - GM.wall)]};
         topRailPart = {layer:'FRAME', kind:'rail', name:'Top rail', dir:'h', sord:1, sideOrd:-0.5, y0:pry0, y1:pry1, yBack:pry1 + 0.25, pts:rect(Pt, H - topRH, W - Pt, H), stepPts:rect(Pt - GM.railInto, H - topRH, W - Pt + GM.railInto, H), loops:trl, x0:Pt - GM.railInto, x1:W - Pt + GM.railInto, isoBodies:null, slotTops:[]};
       } else topRailPart = mkPR('Top rail', H - GM.railH, H, true);
+      if(isOE) topRailPart.sord = 2;      // the Old English uprights go 1 up into the top rail: the rail is painted after them
       if(isSp){ topRailPart.isoBodies = null; topRailPart.sord = 2; topRailPart.slotTops = []; gateRailPart = topRailPart; }      // with the 1 1/2 pickets the top rail is one plain piece with their cutouts, as the Gate Rail is
       parts.push(topRailPart);
     }
