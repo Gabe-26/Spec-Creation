@@ -320,7 +320,7 @@ function dowelPart(name, kind, y0, y1, xa, xb, zb, zt){
 var DEFAULTS = {
   material:'wood', kind:'gate', frame:'2x4', style:'lib_seed-gothic4',
   height:56, width:34, gap:2, top:6, bottom:7,
-  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, pframe:'gm', ppost:'5', sideOff:false, frontOff:false, backOff:false, hiddenDims:[], count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
+  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, pframe:'gm', ppost:'5', gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
   so:'', drawn:'', notes:'', copy:'customer', sheetDims:true, view:'work'
 };
 
@@ -452,7 +452,7 @@ function compute(s){
   var parts = [];      // drawing polys
   var cuts = [];       // cut list rows
   var frameLen = 0;
-  var braceInfo = null, rl = null;
+  var braceInfo = null, rl = null, gml = null;
   if(frameH > 0){
     if(isGate){
       parts.push({layer:'FRAME', name:'Bottom rail', dir:'h', pts:rect(0,z0,W,z0+f.w)});
@@ -463,6 +463,27 @@ function compute(s){
       cuts.push({part:'Top and bottom rails', qty:2, stock:s.frame, length:W, note:'Full width'});
       cuts.push({part:'Stiles', qty:2, stock:s.frame, length:stileLen, note:'Fit between the rails'});
       frameLen += 2*W + 2*stileLen;
+      // Wood single sided gate: any number of mid-rails between the stiles, in the frame stock. Each is placed by the space between rails, measured from the top rail down;
+      // the last space, to the bottom rail, is calculated. The brace still covers the whole opening, from the bottom of the top rail to the top of the bottom rail, but the mid-rails stay whole
+      // and the brace pieces are cut to fit between the rails, butting against the top and bottom of each mid-rail.
+      var gLowRb, gBands = [];
+      if(s.sides === 'single' && s.material === 'wood' && (s.gmids || []).length){
+        var gprevR = z1 - f.w, gSp = [], gOrder = [{zb:z1 - f.w, zt:z1}], gRanges = [], gi;
+        (s.gmids || []).forEach(function(g, i){
+          g = Math.max(0, +g || 0);
+          var rt = gprevR - g, rb = rt - f.w;
+          parts.push({layer:'FRAME', name:'Mid rail ' + (i + 1), dir:'h', pts:rect(f.w, rb, W - f.w, rt)});
+          gSp.push(g); gOrder.push({zb:rb, zt:rt}); gBands.push([rb, rt]); gprevR = rb;
+        });
+        gOrder.push({zb:z0, zt:z0 + f.w});
+        for(gi=0; gi<gOrder.length-1; gi++) gRanges.push([gOrder[gi+1].zt, gOrder[gi].zb]);
+        var gLast = gprevR - (z0 + f.w);
+        if(gLast < -0.001) warn.push('The mid rails run into the bottom rail. Check the spaces between the rails.');
+        gml = {ranges:gRanges, lastSpace:gLast, spaces:gSp, prevR:gprevR, bot:z0 + f.w};
+        gLowRb = gprevR;
+        cuts.push({part:'Mid rails', qty:gSp.length, stock:s.frame, length:Math.max(0, W - 2*f.w), note:'Fit between the stiles'});
+        frameLen += gSp.length*Math.max(0, W - 2*f.w);
+      }
       var xo0 = f.w, xo1 = W - f.w, zo0 = z0 + f.w, zo1 = z1 - f.w;
       if(s.braceTop !== undefined && s.braceTop < zo1) zo1 = s.braceTop;      // brace stops at the lowest mid rail
       var mode = (s.brace === true) ? 'x' : ((s.brace === 'x' || s.brace === 'single') ? s.brace : 'none');
@@ -525,6 +546,24 @@ function compute(s){
           }
         }
       }
+      if(gBands.length){      // cut every brace piece where a mid-rail crosses it
+        var oldB = parts.filter(function(q){ return q.layer === 'BRACE'; });
+        if(oldB.length){
+          var segs = [], segLo = zo0;
+          gBands.slice().sort(function(a, b){ return a[0] - b[0]; }).forEach(function(bd){ if(Math.min(bd[0], zo1) - segLo > 0.01) segs.push([segLo, Math.min(bd[0], zo1)]); segLo = Math.max(segLo, bd[1]); });
+          if(zo1 - segLo > 0.01) segs.push([segLo, zo1]);
+          var maxD = function(pts){ var m = 0, a, b; for(a=0;a<pts.length;a++) for(b=a+1;b<pts.length;b++) m = Math.max(m, Math.hypot(pts[a][0]-pts[b][0], pts[a][1]-pts[b][1])); return m; };
+          var keepP = parts.filter(function(q){ return q.layer !== 'BRACE'; }), newB = [], bRows = [];
+          oldB.forEach(function(q){
+            var np = [];
+            segs.forEach(function(sg){ var cp = clipRect(q.pts, xo0, sg[0], xo1, sg[1]); if(cp.length >= 3) np.push(cp); });
+            np.forEach(function(cp, i){ newB.push(Object.assign({}, q, {pts:cp, name:q.name + (np.length > 1 ? ' ' + (i + 1) : '')})); bRows.push({kind:q.piece, len:maxD(cp)}); });
+          });
+          for(var ci=cuts.length-1; ci>=0; ci--) if(/^(X-brace|Diagonal brace)/.test(cuts[ci].part)){ frameLen -= (cuts[ci].qty || 1)*(cuts[ci].length || 0); cuts.splice(ci, 1); }
+          bRows.forEach(function(r){ cuts.push({part:(r.kind === 'half' ? 'X-brace, half piece' : (r.kind === 'full' ? 'X-brace, full diagonal piece' : 'Diagonal brace piece')), qty:1, stock:s.frame, length:r.len, note:'Cut to fit between the rails, butted against the mid-rails. Scribe to fit.'}); frameLen += r.len; });
+          parts.length = 0; keepP.concat(newB).forEach(function(q){ parts.push(q); });
+        }
+      }
     } else {
       // Rails: top and bottom, plus an automatic middle rail once the frame is over 48 (can be turned off), plus any extra rails added by hand.
       // Extra rails are placed by the space between rails, measured from the top rail down.
@@ -582,7 +621,7 @@ function compute(s){
 
   return {
     s:s, f:f, pk:pk, H:H, W:W, frameH:frameH, z0:z0, z1:z1, n:n, nAuto:nAuto, gap:gap, alts:alts,
-    parts:parts, pickets:pickets, cuts:cuts, brace:braceInfo, warn:warn, topEdge:topEdge, px0:px0, PW:PW, dw:dw, inner:(dw ? {x0:DOWEL_INSET, x1:W-DOWEL_INSET} : null), rl:rl,
+    parts:parts, pickets:pickets, cuts:cuts, brace:braceInfo, warn:warn, topEdge:topEdge, px0:px0, PW:PW, dw:dw, inner:(dw ? {x0:DOWEL_INSET, x1:W-DOWEL_INSET} : null), rl:rl, gml:gml,
     frameLF:frameLen/12, picketLF:(n+nBack)*H/12,
     mode: dbl ? 'both' : 'single', nBack:nBack, depth:{y0:-pk.t, y1:f.t + (dbl ? pk.t : 0)}
   };
@@ -3068,6 +3107,9 @@ function sheetSvg(c, info){
     else if(c.rl && c.rl.ranges.length) c.rl.ranges.forEach(function(rg){
       if(rg[1] - rg[0] > 0.01) o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(rg[1]), BM.Y(rg[0]), fmt(rg[1] - rg[0]), bx1, bx1, stB, 1));
     });
+    else if(c.gml && c.gml.ranges.length) c.gml.ranges.forEach(function(rg){      // a gate with mid-rails: the space between each pair of rails
+      if(rg[1] - rg[0] > 0.01) o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(rg[1]), BM.Y(rg[0]), fmt(rg[1] - rg[0]), bx1, bx1, stB, 1));
+    });
     else o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(c.z1), BM.Y(c.z0), fmt(c.frameH), bx1, bx1, stB, 1));
   }
   var ctxB = {obs:stB.obs, gate:{x0:bx0, x1:bx1, y0:BM.Y(c.Hs || c.H), y1:BM.Y(0)}, cell:{x0:10, x1:SX - 5, y0:bY.y0 + 2, y1:bY.y1 - 2}, placed:[]};
@@ -3435,6 +3477,11 @@ if(typeof document !== 'undefined'){
     if(a && a.zt <= r.prevR + 1e-6 && a.zb >= r.bot - 1e-6) return {g:r.prevR - ((a.zb + r.bot)/2 + w/2)};
     return {g:(r.prevR - r.bot - w)/2};
   }});
+  var gmidBox = midBox('gmids', 'Mid-rails', 'top rail', null, null, {noun:'rail', get:function(c){      // a new rail starts halfway down the last space
+    var w = c.f.w;
+    if(c.gml) return {g:(c.gml.prevR - c.gml.bot - w)/2};
+    return {g:(c.frameH - 3*w)/2};
+  }});
   // Hinge
   (function(){
     var host = el('hingeSeg');
@@ -3486,7 +3533,7 @@ if(typeof document !== 'undefined'){
     state.count = null;
     SEGS.forEach(function(g){ var i = segFs[g.key].querySelector('input[value="' + state[g.key] + '"]'); if(i) i.checked = true; });
     ['hinge', 'brace'].forEach(function(k){ var i = qsAny('input[name=' + k + '][value="' + state[k] + '"]'); if(i) i.checked = true; });
-    [fmidBox, midBox2, pmidBox, rmidBox].forEach(function(b){ b.render(); });
+    [fmidBox, midBox2, pmidBox, rmidBox, gmidBox].forEach(function(b){ b.render(); });
     renderPickets();
     update();
   }
@@ -3803,6 +3850,7 @@ if(typeof document !== 'undefined'){
     midFs.style.display = (tgMode && !pvcNow && !pvcG) ? '' : 'none';
     fmidBox.fs.style.display = (tgMode && !pvcNow && !pvcG) ? '' : 'none';
     rmidBox.fs.style.display = (!tgMode && state.kind === 'fence') ? '' : 'none';
+    gmidBox.fs.style.display = (state.kind === 'gate' && state.material === 'wood' && state.sides === 'single') ? '' : 'none';
     pmidBox.fs.style.display = pvcNow ? '' : 'none';
     ['gap','top','bottom'].forEach(function(k){ inputs[k].parentNode.style.display = (tgMode || ilgOn()) ? 'none' : ''; });
     // with a crown or scallop rail the open spindle scallop and crown toppers are not offered (the rail has its own curve); a gate that had it falls back to the open spindle topper
@@ -3829,6 +3877,7 @@ if(typeof document !== 'undefined'){
       if(mh) mh.textContent = 'Spaces are measured between the rails. Last space, to the bottom back rail: ' + fmt(c.tg.lastSpace);
     }
     if(c.pv){ var ph = el(pmidBox.hint); if(ph) ph.textContent = 'Spaces are measured between the rails, from the top rail down. Last space, to the bottom rail: ' + fmt(c.pv.lastSpace); }
+    if(state.kind === 'gate' && state.material === 'wood' && state.sides === 'single'){ var gh = el(gmidBox.hint); if(gh) gh.textContent = 'Spaces are measured between the rails, from the top rail down.' + (c.gml ? ' Last space, to the bottom rail: ' + fmt(c.gml.lastSpace) : '') + ' The brace covers the whole opening, cut to fit between the rails.'; }
     if(c.rl){ var rh = el(rmidBox.hint); if(rh) rh.textContent = 'Spaces are measured between the rails, from the top rail down. Last space, to the bottom rail: ' + fmt(c.rl.lastSpace); }
     el('lb_width').textContent = state.kind === 'gate' ? 'Gate width' : 'Section width';
     el('btnStepAsm').textContent = state.kind === 'gate' ? 'Full gate' : 'Full fence section';
