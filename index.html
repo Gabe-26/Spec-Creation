@@ -172,12 +172,12 @@
     <div class="toolbar">
       <button class="primary" id="btnDxf" type="button">Download DXF</button>
       <button id="btnPrint" type="button">Print sheet</button>
-      <span class="grp">STEP files</span>
+      <span class="grp" id="stepGrp">STEP files</span>
       <button id="btnStepOne" type="button">This picket</button>
       <button id="btnStepAll" type="button">All pickets</button>
       <button id="btnStepAsm" type="button">Full gate</button>
     </div>
-    <div class="hint stephint">STEP files are in millimeters. Assembly origin is the bottom-left of the frame, with pickets in front of it.</div>
+    <div class="hint stephint" id="stepHint">STEP files are in millimeters. Assembly origin is the bottom-left of the frame, with pickets in front of it.</div>
     <div class="seg viewseg" id="viewSeg" role="radiogroup" aria-label="What to show">
       <label><input type="radio" name="view" value="work"><span>Working view</span></label>
       <label><input type="radio" name="view" value="sheet"><span>Drawing sheet</span></label>
@@ -320,7 +320,7 @@ function dowelPart(name, kind, y0, y1, xa, xb, zb, zt){
 var DEFAULTS = {
   material:'wood', kind:'gate', frame:'2x4', style:'lib_seed-gothic4',
   height:56, width:34, gap:2, top:6, bottom:7,
-  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, pframe:'gm', ppost:'5', gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
+  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
   so:'', drawn:'', notes:'', copy:'customer', sheetDims:true, view:'work'
 };
 
@@ -416,8 +416,266 @@ function picketDef(key){
 }
 setLibrary(JSON.parse(JSON.stringify(SEED_PICKETS)), {dogear:true});
 
+/* ============================ METAL CANTILEVER GATE ============================ */
+// SS 40 galvanized pipe, outside diameters. The two end pipes stand 4 above the top rail and 2 below the bottom rail.
+// Dimension 1 (gate) runs from the inside of the end pipe to the gate-side face of the junction pipe; dimension 2 (balance) starts exactly there and
+// runs to the inside of the far end pipe, so the junction pipe is part of the balance. Overall length = 1 + 2 + the two 2 in. end pipes.
+var MC = {rail:2.5, vert:2, diag:1.625, endP:2, up:4, down:2};
+var MC_GATE = '#c9cdca', MC_BALC = '#2b2d2f', MC_BAR = '#8e938f', MC_CLIP = '#4a4f4c';
+var MC_TB = 1;      // the flat tension bar that holds the wire, on the end pipe and on the junction pipe (width seen from the front; my pick)
+var MC_PAL = {gate:['#666b68','#a0a5a2','#f0f2f0','#c8cdca','#8a8f8c','#5a5f5d'], bal:['#0e1011','#27292b','#6d7377','#3c4043','#202224','#0b0c0d'], at:[0, 0.18, 0.34, 0.55, 0.82, 1]};
+function mcPipe(p, X, Y, sc, id){      // a round-pipe look: a gradient across the pipe, lightest toward the upper left. Returns {def, fill}, or null for flat parts
+  if(!p.ax) return null;
+  var a = p.ax, x0 = X(a[0]), y0 = Y(a[1]), x1 = X(a[2]), y1 = Y(a[3]), dx = x1 - x0, dy = y1 - y0, len = Math.sqrt(dx*dx + dy*dy) || 1;
+  var nx = -dy/len, ny = dx/len;
+  if(nx + ny > 0){ nx = -nx; ny = -ny; }
+  var h = p.w*sc/2, cx = (x0 + x1)/2, cy = (y0 + y1)/2, pal = p.bal ? MC_PAL.bal : MC_PAL.gate, st = '';
+  pal.forEach(function(c, i){ st += '<stop offset="' + MC_PAL.at[i] + '" stop-color="' + c + '"/>'; });
+  return {def:'<linearGradient id="' + id + '" gradientUnits="userSpaceOnUse" x1="' + (cx + nx*h).toFixed(3) + '" y1="' + (cy + ny*h).toFixed(3) + '" x2="' + (cx - nx*h).toFixed(3) + '" y2="' + (cy - ny*h).toFixed(3) + '">' + st + '</linearGradient>', fill:'url(#' + id + ')'};
+}
+function mcBand(xa, za, xb, zb, w, ox0, oz0, ox1, oz1){      // a pipe seen from the front: a band of width w along the line, cut off at the edges of the opening it sits in
+  var dx = xb - xa, dz = zb - za, len = Math.sqrt(dx*dx + dz*dz), ux = dx/len, uz = dz/len, nx = -uz*w/2, nz = ux*w/2, e = w*2;
+  var pts = [[xa - ux*e + nx, za - uz*e + nz],[xb + ux*e + nx, zb + uz*e + nz],[xb + ux*e - nx, zb + uz*e - nz],[xa - ux*e - nx, za - uz*e - nz]];
+  return clipRect(pts, ox0, oz0, ox1, oz1);
+}
+function computeCantilever(s){
+  var H = s.height, G = s.width, B = (s.mbal === 'custom' && s.mbalv > 0) ? s.mbalv : G*0.5, L = G + B + 2*MC.endP, flip = s.mflip === 'left';
+  var xj0 = MC.endP + G, cj = xj0 + MC.vert/2;      // the junction pipe: its gate-side face and its center
+  var ng = Math.max(1, Math.round(+s.mgb || 1)), nb = Math.max(1, Math.round(+s.mbb || 1));
+  var zB = MC.down + MC.rail, zT = H - MC.up - MC.rail, warn = [], parts = [], k;
+  function mx(x){ return flip ? L - x : x; }
+  function add(kind, layer, pts, bal, fill, ax){      // ax = [x0, z0, x1, z1, diameter]: the pipe's center line, used to shade it like a round pipe
+    if(!pts || pts.length < 3) return;
+    parts.push({kind:kind, layer:layer, bal:bal, mfill:fill || (bal ? MC_BALC : MC_GATE), dir:'v', pts:pts.map(function(q){ return [mx(q[0]), q[1]]; }), ax:ax ? [mx(ax[0]), ax[1], mx(ax[2]), ax[3]] : null, w:ax ? ax[4] : 0});
+  }
+  if(zT - zB < 1) warn.push('The overall height of ' + fmt(H) + ' leaves no room between the rails (the frame takes 4 above, 2 below and two 2 1/2 rails).');
+  // centers of every upright from end to end: the left end pipe, the gate verticals, the junction, the balance verticals, the right end pipe
+  var ups = [1];
+  for(k=1;k<ng;k++) ups.push(1 + k*(cj-1)/ng);
+  ups.push(cj);
+  for(k=1;k<nb;k++) ups.push(cj + k*(L-1-cj)/nb);
+  ups.push(L-1);
+  for(k=0;k<ups.length-1;k++) if(ups[k+1] - ups[k] - MC.vert < 1){ warn.push('The bays are too narrow for that many braces. Lower the gate or balance brace count, or make the gate wider.'); break; }
+  if(s.mwire === 'on'){      // black wire between the two gate uprights, held by a flat tension bar against each one, with a clip about every 18 in. bolting the bar to the pipe
+    add('wirebg', 'FRAME', rect(2 + MC_TB, zB, xj0 - MC_TB, zT), false, '#ffffff');      // white behind the mesh, so the mesh itself can be see-through
+    add('wire', 'FRAME', rect(2 + MC_TB, zB, xj0 - MC_TB, zT), false, 'wire');
+    add('tbar', 'FRAME', rect(2, zB, 2 + MC_TB, zT), false, MC_BAR);
+    add('tbar', 'FRAME', rect(xj0 - MC_TB, zB, xj0, zT), false, MC_BAR);
+    var ncl = Math.max(2, Math.floor((zT - zB - 4)/18) + 1), ci;      // clips exactly 18 in. apart, centered on the opening
+    for(ci=0; ci<ncl; ci++){
+      var zc = (zB + zT)/2 + (ci - (ncl - 1)/2)*((ncl > 2 || (zT - zB) >= 22) ? 18 : (zT - zB - 4));
+      add('clip', 'FRAME', rect(2, zc - 0.75, 2 + 2*MC_TB + 0.5, zc + 0.75), false, MC_CLIP);
+      add('clip', 'FRAME', rect(xj0 - 2*MC_TB - 0.5, zc - 0.75, xj0, zc + 0.75), false, MC_CLIP);
+    }
+  }
+  // the pipes are added uprights and braces first, then the rails, then the end pipes, so each rail and end pipe runs on unbroken over the pipes welded into it
+  ups.slice(1, -1).forEach(function(cx){ add('mvert', 'FRAME', rect(cx - MC.vert/2, zB, cx + MC.vert/2, zT), cx >= cj - 1e-9, null, [cx, zB, cx, zT, MC.vert]); });
+  for(k=0;k<ups.length-1;k++){
+    var xl = ups[k] + MC.vert/2, xr = ups[k+1] - MC.vert/2, isBal = ups[k] >= cj - 1e-9;
+    if(xr - xl < 0.5 || zT - zB < 1) continue;
+    add('mdiag', 'BRACE', isBal ? mcBand(xl, zB, xr, zT, MC.diag, xl, zB, xr, zT) : mcBand(xl, zT, xr, zB, MC.diag, xl, zB, xr, zT), isBal, null, isBal ? [xl, zB, xr, zT, MC.diag] : [xl, zT, xr, zB, MC.diag]);      // gate diagonals run down toward the junction, balance diagonals up away from it
+  }
+  [[MC.down, MC.down + MC.rail],[H - MC.up - MC.rail, H - MC.up]].forEach(function(r){
+    var zc2 = (r[0] + r[1])/2;
+    add('mrail', 'FRAME', rect(2, r[0], xj0, r[1]), false, null, [2, zc2, xj0, zc2, MC.rail]);
+    add('mrail', 'FRAME', rect(xj0, r[0], L - 2, r[1]), true, null, [xj0, zc2, L - 2, zc2, MC.rail]);      // the black side starts at the gate-side face of the junction pipe, so it is one closed frame
+  });
+  var bays = [];      // the clear space between each pair of neighbouring uprights, where a brace sits (in drawn, front-view x)
+  for(k=0;k<ups.length-1;k++){ var ba = ups[k] + MC.vert/2, bb = ups[k+1] - MC.vert/2; bays.push({x0:Math.min(mx(ba), mx(bb)), x1:Math.max(mx(ba), mx(bb))}); }
+  add('mend', 'FRAME', rect(0, 0, MC.endP, H), false, null, [MC.endP/2, 0, MC.endP/2, H, MC.endP]);
+  add('mend', 'FRAME', rect(L - MC.endP, 0, L, H), true, null, [L - MC.endP/2, 0, L - MC.endP/2, H, MC.endP]);
+  var b0 = [ups[0] + MC.vert/2, ups[1] - MC.vert/2], zm = (zB + zT)/2, zr = H - MC.up - MC.rail/2;
+  var dk = ng - 1, dxl = ups[dk] + MC.vert/2, dxr = ups[dk + 1] - MC.vert/2, dgx = dxl + (dxr - dxl)*0.16, dgz = zT - (zT - zB)*0.16;      // a point on the last gate diagonal, just in from its top end
+  return {
+    metal:{bays:bays, G:G, B:B, L:L, H:H, flip:flip, ng:ng, nb:nb, zB:zB, zT:zT, wire:s.mwire === 'on', xj:mx(cj),
+      gx0:flip ? L - xj0 : 2, gx1:flip ? L - 2 : xj0, bx0:flip ? 2 : xj0, bx1:flip ? L - xj0 : L - 2,
+      tg:{rail:[[mx(2 + G*0.2), zr],[mx(2 + G*0.5), zr]], vert:[[mx(ups[1]), zT - (zT - zB)*0.12]], diag:[[mx(dgx), dgz]], end:[[mx(MC.endP/2), H*0.5]],
+        wire:[[mx(b0[0] + (b0[1] - b0[0])*0.8), zB + (zT - zB)*0.78],[mx(b0[0] + (b0[1] - b0[0])*0.2), zB + (zT - zB)*0.22]]}},
+    s:s, W:L, H:H, parts:parts, pickets:[], warn:warn,
+    partsFront:parts.filter(function(q){ return q.kind === 'wirebg'; }).concat(['mvert', 'mdiag', 'mrail', 'mend'].reduce(function(acc, kd){ return acc.concat(parts.filter(function(q){ return q.kind === kd; })); }, []), parts.filter(function(q){ return q.kind === 'wire' || q.kind === 'tbar' || q.kind === 'clip'; }))      // front view: the wire is on the front of the frame, so it is painted over the braces and middle uprights
+  };
+}
+function metalDrawing(c){      // working view: the front elevation with its dimensions, in inches
+  var m = c.metal, W = c.W, H = c.H, fs = Math.max(W, H)/30;
+  var zb = -fs*3, xl = -fs*3, xr = W + fs*3, dims = [];
+  dims.push({k:'h', xa:m.gx0, xb:m.gx1, z:zb, fa:MC.down, fb:MC.down, label:fmt(m.G), side:1});
+  dims.push({k:'h', xa:m.bx0, xb:m.bx1, z:zb, fa:MC.down, fb:MC.down, label:fmt(m.B), side:1});
+  dims.push({k:'v', x:xr, za:0, zb:H, fa:W, fb:W, label:fmt(H), side:1});
+  dims.push({k:'v', x:xl, za:H - MC.up, zb:H, fa:0, fb:0, label:fmt(MC.up), side:-1});
+  dims.push({k:'v', x:xl, za:0, zb:MC.down, fa:0, fb:0, label:fmt(MC.down), side:-1});
+  var lines = [], texts = [];
+  function Ln(a, b){ lines.push({a:a, b:b, layer:'DIMS'}); }
+  function tick(x, z){ var t = fs*0.28; Ln([x - t, z - t], [x + t, z + t]); }
+  dims.forEach(function(d){
+    if(d.k === 'h'){
+      Ln([d.xa, d.z], [d.xb, d.z]); tick(d.xa, d.z); tick(d.xb, d.z);
+      Ln([d.xa, d.fa], [d.xa, d.z + (d.z > d.fa ? 1 : -1)*fs*0.5]); Ln([d.xb, d.fb], [d.xb, d.z + (d.z > d.fb ? 1 : -1)*fs*0.5]);
+      texts.push({x:(d.xa + d.xb)/2, z:d.z - d.side*fs*1.3, s:d.label, size:fs, anchor:'middle', rot:0});
+    } else {
+      Ln([d.x, d.za], [d.x, d.zb]); tick(d.x, d.za); tick(d.x, d.zb);
+      Ln([d.fa, d.za], [d.x + (d.x > d.fa ? 1 : -1)*fs*0.5, d.za]); Ln([d.fb, d.zb], [d.x + (d.x > d.fb ? 1 : -1)*fs*0.5, d.zb]);
+      texts.push({x:d.x + d.side*fs*1.2, z:(d.za + d.zb)/2, s:d.label, size:fs, anchor:'middle', rot:90});
+    }
+  });
+  return {polys:c.partsFront, dims:dims, notes:[], lines:lines, texts:texts, view:{x0:-fs*7, x1:W + fs*7, z0:-fs*7, z1:H + fs*6}, fs:fs};
+}
+function metalSheetSvg(c, info){      // the cantilever drawing sheet: front view on top, back view below, material specification at the top right
+  var m = c.metal, L = m.L, H = m.H, GREEN = '#1d6b32', BLUE = '#1f3fe0', INK = '#111', STK = '#2a2f33', o = [];
+  var hidSet = {}, curView = 'front', dimCount = {};
+  (info.hiddenDims || []).forEach(function(k){ hidSet[k] = true; });
+  function dimWrap(kind, label, svg){
+    var base = curView + '|' + kind + '|' + label; dimCount[base] = (dimCount[base] || 0) + 1;
+    var key = base + '|' + dimCount[base];
+    if(hidSet[key]) return '';
+    return '<g class="dimg" data-dim="' + key.replace(/&/g,'&amp;').replace(/"/g,'&quot;') + '" style="cursor:pointer"><title>Click to hide this dimension</title>' + svg + '</g>';
+  }
+  function dimH(){ return dimWrap('h', arguments[3], dimSvgH.apply(null, arguments)); }
+  function dimV(){ return dimWrap('v', arguments[3], dimSvgV.apply(null, arguments)); }
+  function n2(v){ return (+v).toFixed(2); }
+  function esc2(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function ln(x1,y1,x2,y2,w,col){ o.push('<line x1="'+n2(x1)+'" y1="'+n2(y1)+'" x2="'+n2(x2)+'" y2="'+n2(y2)+'" stroke="'+(col||INK)+'" stroke-width="'+(w||1)+'"/>'); }
+  function tx(x,y,str,size,col,anchor,weight){
+    o.push('<text x="'+n2(x)+'" y="'+n2(y)+'" font-size="'+size+'" fill="'+(col||INK)+'" text-anchor="'+(anchor||'start')+'" font-weight="'+(weight||'bold')+'">'+esc2(str)+'</text>');
+  }
+  function titleBox(cx, y, str){
+    var w = str.length*11.6 + 26;
+    o.push('<rect x="'+n2(cx-w/2)+'" y="'+y+'" width="'+n2(w)+'" height="22" fill="#fff" stroke="'+INK+'" stroke-width="1"/>');
+    tx(cx, y+17, str, 19, GREEN, 'middle');
+  }
+  function head(x, y, ang, col){      // small filled arrowhead at (x, y) pointing along ang
+    var a1 = ang + 2.75, a2 = ang - 2.75;
+    o.push('<polygon points="'+n2(x)+','+n2(y)+' '+n2(x+7*Math.cos(a1))+','+n2(y+7*Math.sin(a1))+' '+n2(x+7*Math.cos(a2))+','+n2(y+7*Math.sin(a2))+'" fill="'+col+'"/>');
+  }
+  function drawCallout(letter, P){
+    ln(P.sx, P.sy, P.T[0], P.T[1], 0.9, BLUE);
+    head(P.T[0], P.T[1], Math.atan2(P.T[1]-P.sy, P.T[0]-P.sx), BLUE);
+    tx(P.lx, P.ly + 4.7, letter, 13, BLUE, 'middle');
+  }
+  var dimsOn = !!info.dims, frontOff = !!info.frontOff, backOff = !!info.backOff;
+  var stF = {size:9.5, color:DIM_RED, sw:0.6, obs:[]};
+  var fBox = {x0:8, x1:757, y0:34, y1:274}, bBox = {x0:8, x1:915, y0:303, y1:543};
+  var fPad = dimsOn ? {l:46, r:46, t:32, b:40} : {l:10, r:10, t:32, b:10}, bPad = dimsOn ? {l:10, r:10, t:40, b:10} : {l:10, r:10, t:10, b:10};
+  var fW = fBox.x1 - fBox.x0 - fPad.l - fPad.r, fH = fBox.y1 - fBox.y0 - fPad.t - fPad.b;
+  var bW = bBox.x1 - bBox.x0 - bPad.l - bPad.r, bH = bBox.y1 - bBox.y0 - bPad.t - bPad.b;
+  var sc = backOff ? Math.min(fW/L, fH/H) : (frontOff ? Math.min(bW/L, bH/H) : Math.min(fW/L, fH/H, bW/L, bH/H));      // both views are drawn at the same size
+  var ox = frontOff ? bBox.x0 + bPad.l + (bW - sc*L)/2 : fBox.x0 + fPad.l + (fW - sc*L)/2;
+  function FX(x){ return ox + sc*x; }
+  function FY(z){ return fBox.y1 - fPad.b - (fH - sc*H)/2 - sc*z; }
+  function BY(z){ return bBox.y1 - bPad.b - (bH - sc*H)/2 - sc*z; }
+  var pgN = 0;
+  function pipes(X, Y, list, tag){
+    (list || c.parts).forEach(function(p){
+      var pts = p.pts.map(function(q){ return n2(X(q[0])) + ',' + n2(Y(q[1])); }).join(' '), fill = (p.mfill === 'wire' ? 'url(#mws)' : p.mfill), pg = mcPipe(p, X, Y, sc, 'mp' + tag + (pgN++));
+      if(pg){ o.push(pg.def); fill = pg.fill; }
+      o.push('<polygon points="'+pts+'" fill="'+fill+'" stroke="'+(pg ? '#1b1e20' : STK)+'" stroke-width="'+(pg ? 0.6 : 0.8)+'" stroke-linejoin="round"/>');
+    });
+  }
+
+  o.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 925 690" font-family="Arial, Helvetica, sans-serif">');
+  o.push('<defs><pattern id="mws" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M0 0L6 6M6 0L0 6" stroke="#1c1c1c" stroke-width="0.9"/><g fill="#1c1c1c"><circle cx="0" cy="0" r="0.8"/><circle cx="6" cy="0" r="0.8"/><circle cx="0" cy="6" r="0.8"/><circle cx="6" cy="6" r="0.8"/><circle cx="3" cy="3" r="0.8"/></g></pattern></defs>');
+  o.push('<rect x="0" y="0" width="925" height="690" fill="#fff"/>');
+  o.push('<rect x="5" y="8" width="915" height="675" fill="none" stroke="'+INK+'" stroke-width="1.4"/>');
+  ln(398,546,398,683); ln(5,546,920,546); ln(5,277,920,277);
+  ln(659,546,659,683); ln(659,573,920,573); ln(398,628,659,628);
+
+  // ---- front view ----
+  curView = 'front';
+  var frontStart = o.length;
+  pipes(FX, FY, c.partsFront, 'f');
+  o.push('<g data-viewtoggle="front" style="cursor:pointer"><title>Click to hide the front view</title>'); titleBox(381, 8, 'FRONT VIEW'); o.push('</g>');
+  if(dimsOn){
+    var yb = FY(0) + 24;
+    o.push(dimH(FX(m.gx0), FX(m.gx1), yb, fmt(m.G), FY(MC.down), FY(MC.down), stF, 1));
+    o.push(dimH(FX(m.bx0), FX(m.bx1), yb, fmt(m.B), FY(MC.down), FY(MC.down), stF, 1));
+    o.push(dimV(FX(L) + 26, FY(H), FY(0), fmt(H), FX(L), FX(L), stF, 1));
+    o.push(dimV(FX(0) - 26, FY(H), FY(H - MC.up), fmt(MC.up), FX(0), FX(0), stF, -1));
+    o.push(dimV(FX(0) - 26, FY(MC.down), FY(0), fmt(MC.down), FX(0), FX(0), stF, -1));
+  }
+  // BALANCE label with an arrow to the balance side
+  var bcx = FX((m.bx0 + m.bx1)/2), bty = FY(H) - 14;
+  tx(bcx, bty, 'BALANCE', 19, BLUE, 'middle');
+  ln(bcx, bty + 4, bcx, FY(H - MC.up) - 1, 0.9, BLUE); head(bcx, FY(H - MC.up) - 1, Math.PI/2, BLUE);
+  stF.obs.push({x0:bcx - 46, x1:bcx + 46, y0:bty - 16, y1:bty + 5, major:true});
+  var ctxF = {obs:stF.obs, gate:{x0:FX(0), x1:FX(L), y0:FY(H), y1:FY(0)}, cell:{x0:10, x1:fBox.x1 - 5, y0:fBox.y0 + 2, y1:fBox.y1 - 2}, placed:[]};
+  var rows = [
+    {L:'A', size:'SS 40 - ' + fmt(MC.rail), name:'GALV RAIL', key:'rail', pref:270},
+    {L:'B', size:'SS 40 - ' + fmt(MC.vert), name:'GALV VERTICAL', key:'vert', pref:270},
+    {L:'C', size:'SS 40 - ' + fmt(MC.diag), name:'GALV BRACE', key:'diag', pref:270},
+    {L:'D', size:'SS 40 - ' + fmt(MC.endP), name:'GALV END PIPE', key:'end', pref:180}
+  ];
+  if(m.wire) rows.push({L:'E', size:'2 X 9', name:'BLACK WIRE', key:'wire', pref:270});
+  rows.forEach(function(r){
+    drawCallout(r.L, placeCallout(m.tg[r.key].map(function(q){ return [FX(q[0]), FY(q[1])]; }), r.pref, ctxF));
+  });
+  if(frontOff) o.length = frontStart;
+
+  // ---- back view (the same gate seen from the other side, so it is mirrored) ----
+  curView = 'back';
+  var backStart = o.length;
+  pipes(function(x){ return FX(L - x); }, BY, null, 'b');
+  o.push('<g data-viewtoggle="back" style="cursor:pointer"><title>Click to hide the back view</title>'); titleBox(381, 277, 'BACK VIEW'); o.push('</g>');
+  if(dimsOn){      // the clear space in each bay, between the inside faces of the uprights where a brace goes, rounded up to the next 1/8
+    var stB = {size:9.5, color:DIM_RED, sw:0.6, obs:[]}, ybb = BY(H) - 24;
+    m.bays.forEach(function(bay){ o.push(dimH(FX(L - bay.x1), FX(L - bay.x0), ybb, '\u00b1' + fmt(Math.ceil((bay.x1 - bay.x0)*8 - 1e-9)/8), BY(H - MC.up), BY(H - MC.up), stB, -1)); });
+  }
+  if(backOff) o.length = backStart;
+  var hdX = 470;
+  [['front', frontOff, 'FRONT VIEW'],['back', backOff, 'BACK VIEW']].forEach(function(h){
+    if(!h[1]) return;
+    o.push('<g class="noprint" data-viewtoggle="' + h[0] + '" style="cursor:pointer"><title>Click to show the ' + h[0] + ' view</title><rect x="' + hdX + '" y="8" width="104" height="20" fill="#fff" stroke="' + INK + '" stroke-width="1" stroke-dasharray="3,2"/>');
+    tx(hdX + 52, 23, h[2] + '  +', 11, GREEN, 'middle'); o.push('</g>'); hdX += 110;
+  });
+
+  // ---- material specification table ----
+  var RH = rows.length > 6 ? 30 : (rows.length > 3 ? 34 : 46), th = 56 + rows.length*RH;
+  o.push('<rect x="766" y="8" width="154" height="'+(th-8)+'" fill="#fff" stroke="'+INK+'" stroke-width="1.2"/>');
+  tx(843, 25, 'MATERIAL', 17, GREEN, 'middle'); tx(843, 46, 'SPECIFICATION', 17, GREEN, 'middle');
+  ln(766, 56, 920, 56, 1.2); ln(797, 56, 797, th, 1);
+  rows.forEach(function(r, i){
+    var y = 56 + i*RH;
+    if(i) ln(766, y, 920, y, 1);
+    tx(781.5, y + RH/2 + 6, r.L, 18, BLUE, 'middle');
+    if(r.name.length >= 18){      // a long name goes on two lines, in a smaller size, so it stays inside the box
+      var sp = -1, best = 1e9, si;
+      for(si=0; si<r.name.length; si++) if(r.name.charAt(si) === ' '){ var mxl = Math.max(si, r.name.length - si - 1); if(mxl < best){ best = mxl; sp = si; } }
+      var nm1 = sp > 0 ? r.name.slice(0, sp) : r.name, nm2 = sp > 0 ? r.name.slice(sp + 1) : '';
+      o.push(richTextSvg(858, y + RH*0.22 - 1, r.size, 10.5, INK, 'middle', false));
+      o.push(richTextSvg(858, y + RH*0.58 + 1, nm1, 9, INK, 'middle', false));
+      o.push(richTextSvg(858, y + RH*0.86 + 1, nm2, 9, INK, 'middle', false));
+      return;
+    }
+    o.push(richTextSvg(858, y + (RH > 40 ? 16 : (RH > 32 ? 13 : 10)) - 1, r.size, 12, INK, 'middle', false));
+    o.push(richTextSvg(858, y + (RH > 40 ? 35 : (RH > 32 ? 27 : 22)) + 1, r.name, 11, INK, 'middle', false));
+  });
+
+  // ---- bottom strip ----
+  tx(10, 577, 'NOTES:', 22, GREEN, 'start');
+  ln(103, 573, 387, 573, 1);
+  [595,617,639,661].forEach(function(y){ ln(15, y, 387, y, 1); });
+  var words = String(info.notes || '').replace(/\s+/g,' ').trim().split(' '), lines = [], cur = '';
+  words.forEach(function(w){
+    if(!w) return;
+    var limit = lines.length ? 55 : 41;
+    if((cur + ' ' + w).trim().length > limit){ lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim();
+  });
+  if(cur) lines.push(cur);
+  var ny = [570, 592, 614, 636, 658];
+  lines.slice(0,5).forEach(function(t, i){ tx(i === 0 ? 108 : 20, ny[i], t, 12.5, INK, 'start', 'normal'); });
+  tx(402, 567, 'SALE ORDER #:', 16, GREEN, 'start'); ln(543, 574, 648, 574, 1);
+  if(info.so) tx(546, 571, info.so, 14, INK, 'start', 'normal');
+  tx(402, 611, 'DRAWN:', 16, GREEN, 'start'); ln(478, 617, 648, 617, 1);
+  tx(482, 614, info.drawn || '', 14, INK, 'start', 'normal');
+  tx(410, 667, 'X', 20, INK, 'start'); ln(408, 672, 648, 672, 1);
+  var copyTxt = info.copy === 'shop' ? 'SHOP COPY' : (info.copy === 'none' ? '' : 'CUSTOMER COPY');
+  if(copyTxt) tx(789.5, 566, copyTxt, 21, GREEN, 'middle');
+  if(info.logo) o.push('<image href="'+info.logo+'" x="666" y="577" width="248" height="104" preserveAspectRatio="xMidYMid meet"/>');
+  o.push('</svg>');
+  return o.join('');
+}
+
 /* ============================ BUILD RULES ============================ */
 function compute(s){
+  if(s.material === 'metal') return computeCantilever(s);
   if(s.kind === 'gate' && isDowel(s.frame)) s = Object.assign({}, s, {frame:'2x4'});     // dowel rail is fence only
   if(s.material === 'pvc' && s.kind === 'fence' && s.sides === 'double' && s.dstyle === 'tg') return computePVC(s);
   if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && s.dstyle === 'tg') return computePVCGate(s);
@@ -1965,6 +2223,7 @@ function latDetailSvg(cx, cy, R, wt, target){
 }
 
 function drawing(c){
+  if(c.metal) return metalDrawing(c);
   var W=c.W, H=c.H;
   var fs = Math.max(W,H)/30;         // text height
   var polys = layerOrder(c, false);
@@ -2031,6 +2290,7 @@ function svgString(c){
   out.push('<pattern id="gv" width="0.9" height="6" patternUnits="userSpaceOnUse"><rect width="0.9" height="6" fill="#dcbc92"/><path d="M0.25 0V6M0.7 0V6" stroke="#c9a173" stroke-width="0.07"/></pattern>');
   out.push('<pattern id="gh" width="6" height="0.9" patternUnits="userSpaceOnUse"><rect width="6" height="0.9" fill="#bf935f"/><path d="M0 0.25H6M0 0.7H6" stroke="#a97c4a" stroke-width="0.07"/></pattern>');
   out.push('<pattern id="gs" width="0.9" height="6" patternUnits="userSpaceOnUse"><rect width="0.9" height="6" fill="#bf935f"/><path d="M0.25 0V6M0.7 0V6" stroke="#a97c4a" stroke-width="0.07"/></pattern>');
+  out.push('<pattern id="mwv" width="2.8" height="2.8" patternUnits="userSpaceOnUse"><path d="M0 0L2.8 2.8M2.8 0L0 2.8" stroke="#1c1c1c" stroke-width="0.32"/><g fill="#1c1c1c"><circle cx="0" cy="0" r="0.24"/><circle cx="2.8" cy="0" r="0.24"/><circle cx="0" cy="2.8" r="0.24"/><circle cx="2.8" cy="2.8" r="0.24"/><circle cx="1.4" cy="1.4" r="0.24"/></g></pattern>');
   out.push('</defs>');
   out.push('<rect x="'+v.x0+'" y="'+(-v.z1)+'" width="'+vw+'" height="'+vh+'" fill="#e9ece7"/>');
   // 6" scale grid
@@ -2061,6 +2321,7 @@ function svgString(c){
     if(p.vg.r) band(x1 - cw, x1);
     if(p.vg.m !== undefined) band(x0 + p.vg.m - p.vg.mw/2, x0 + p.vg.m + p.vg.mw/2);
   }
+  var pgW = 0;
   d.polys.forEach(function(p){
     var fill;
     if(p.lat){
@@ -2068,10 +2329,13 @@ function svgString(c){
       out.push(latDraw(p.lat, mpS, latOutline(p.lat).map(function(q){ return mpS(q[0], q[1]).join(','); }).join(' '), (fs*0.04).toFixed(3), '#e3e5e0', '#2a2f33'));
       return;
     }
-    if(p.layer === 'PICKET') fill = wood ? 'url(#gv)' : (p.vg ? '#cbccc6' : '#fdfdfb');      // PVC T&G boards are a light gray so they read as boards, not blank white
+    var mpg = p.mfill ? mcPipe(p, function(x){ return x; }, function(z){ return -z; }, 1, 'mpw' + (pgW++)) : null;
+    if(mpg){ out.push(mpg.def); fill = mpg.fill; }
+    else if(p.mfill) fill = (p.mfill === 'wire' ? 'url(#mwv)' : p.mfill);
+    else if(p.layer === 'PICKET') fill = wood ? 'url(#gv)' : (p.vg ? '#cbccc6' : '#fdfdfb');      // PVC T&G boards are a light gray so they read as boards, not blank white
     else if(p.layer === 'BRACE') fill = wood ? '#b2865a' : '#dfe2dd';
     else fill = wood ? (p.dir === 'v' ? 'url(#gs)' : 'url(#gh)') : (p.kind === 'cap' ? '#b9bdb6' : (p.kind === 'plug' ? '#f4f4f0' : (p.kind === 'oebar' ? '#fdfdfb' : '#cdd2cb')));
-    poly(p, fill, p.layer === 'PICKET' ? 0.07 : 0.06, wood ? (p.layer === 'PICKET' ? '#dcbc92' : (p.dir === 'd' ? null : '#bf935f')) : null);
+    poly(p, fill, mpg ? 0.015 : (p.layer === 'PICKET' ? 0.07 : 0.06), wood ? (p.layer === 'PICKET' ? '#dcbc92' : (p.dir === 'd' ? null : '#bf935f')) : null);
     if(p.vg) vgroove(p);
     if(p.curves) p.curves.forEach(function(pl){
       out.push('<polyline points="' + pl.map(function(q){ return n3(q[0]) + ',' + n3(-q[1]); }).join(' ') + '" fill="none" stroke="#2a2f33" stroke-width="' + (fs*0.03).toFixed(3) + '"/>');
@@ -2858,6 +3122,7 @@ function placeCallout(Ts, pref, ctx){
 }
 
 function sheetSvg(c, info){
+  if(c.metal) return metalSheetSvg(c, info);
   // Every dimension is wrapped so it can be clicked to hide it. Its key is the view, the direction, the number and how many of those came before it.
   var hidSet = {}, curView = 'front', dimCount = {};
   (info.hiddenDims || []).forEach(function(k){ hidSet[k] = true; });
@@ -3351,6 +3616,7 @@ if(typeof document !== 'undefined'){
   }catch(e){}
   if(state.topper === 'CROWN' || state.topper === 'SCALLOP'){ state.topRail = state.topper; state.topper = 'none'; }      // the rails used to be Topper choices
   if(state.topRail !== 'CROWN' && state.topRail !== 'SCALLOP') state.topRail = 'none';
+  if(state.mbal !== 'custom') state.mbal = 'half';      // the 2/5 and 1/3 buttons are gone
   if(state.wTopper !== 'SQL' && state.wTopper !== 'DGL') state.wTopper = 'none';
   if(state.brace === true) state.brace = 'x';
   if(state.brace === false) state.brace = 'none';
@@ -3359,8 +3625,12 @@ if(typeof document !== 'undefined'){
 
   var presetFs = null;
   var SEGS = [
-    {key:'material', label:'Material', choices:[['wood','Wood'],['pvc','PVC']]},
-    {key:'kind', label:'Build', choices:[['fence','Fence'],['gate','Gate']]},
+    {key:'material', label:'Material', choices:[['wood','Wood'],['pvc','PVC'],['metal','Metal']]},
+    {key:'kind', label:'Build', choices:[['fence','Fence'],['gate','Gate']], when:function(){ return state.material !== 'metal'; }},
+    {key:'mbuild', label:'Build', metal:true, choices:[['frame','Frame'],['rolling','Rolling Gate'],['barrier','Barrier Gate'],['cantilever','Cantilever']], when:function(){ return state.material === 'metal'; }},
+    {key:'mbal', label:'Balance size', metal:true, choices:[['half','1/2 (recommended)'],['custom','Custom']], when:function(){ return state.material === 'metal'; }},
+    {key:'mflip', label:'Flip', metal:true, choices:[['right','Balance on right'],['left','Balance on left']], when:function(){ return state.material === 'metal'; }},
+    {key:'mwire', label:'Black wire (gate side only)', metal:true, choices:[['off','Off'],['on','On']], when:function(){ return state.material === 'metal'; }},
     {key:'sides', label:'Sides', choices:[['single','Single sided'],['double','Double sided']]},
     {key:'dstyle', label:'Double sided style', choices:[['both','Pickets both sides'],['tg','T&G (Oklahoma)'],['ilg','ILG-CUS<small>(Illinois gate)</small>']], when:function(){ return state.sides === 'double'; }},
     {key:'align', label:'Back pickets', choices:[['aligned','Directly behind'],['stagger','Staggered in the gaps']], when:function(){ return state.sides === 'double' && state.dstyle === 'both'; }},
@@ -3411,7 +3681,7 @@ if(typeof document !== 'undefined'){
   SEGS.forEach(function(g){
     var fs = radioGroup(g.key, g.label, g.choices, state[g.key], el('segs'));
     segFs[g.key] = fs;
-    if(g.key === 'dstyle'){ var dsg = fs.querySelector('.seg'); if(dsg) dsg.classList.add('tall'); }
+    if(g.key === 'dstyle' || g.key === 'mbuild' || g.key === 'mbal'){ var dsg = fs.querySelector('.seg'); if(dsg) dsg.classList.add('tall'); }
     if(g.key === 'topper'){ var tsg = fs.querySelector('.seg'); if(tsg) tsg.classList.add('wrap'); }      // six choices with long names: wrap them into rows
     fs.addEventListener('change', function(e){
       state[g.key] = e.target.value;
@@ -3419,6 +3689,33 @@ if(typeof document !== 'undefined'){
       if(g.key === 'material' || g.key === 'sides' || g.key === 'dstyle') renderPickets();
       update();
     });
+  });
+  // Metal: Frame, Rolling Gate and Barrier Gate are not specced yet, so they show greyed out
+  ['frame','rolling','barrier'].forEach(function(v){ var bi = segFs.mbuild.querySelector('input[value="'+v+'"]'); if(bi){ bi.disabled = true; bi.parentNode.style.opacity = '.45'; bi.parentNode.title = 'Not built yet'; bi.style.cursor = 'not-allowed'; } });
+  // Metal: a typed balance length, shown when Custom is picked (it starts from the recommended 1/2 of the gate width)
+  var mbFs = document.createElement('fieldset');
+  mbFs.innerHTML = '<div class="field"><label class="lbl" for="in_mbalv">Balance length (dimension 2)</label><input type="text" id="in_mbalv" inputmode="decimal" autocomplete="off"><div class="hint">From the gate-side face of the junction pipe to the inside of the end pipe (the junction pipe is included), in inches, like 46 1/2.</div></div>';
+  segFs.mbal.parentNode.insertBefore(mbFs, segFs.mbal.nextSibling);
+  var mbIn = mbFs.querySelector('#in_mbalv');
+  function mbShow(){ mbIn.value = fmt(state.mbalv > 0 ? state.mbalv : state.width/2); }
+  mbShow();
+  segFs.mbal.addEventListener('change', function(){ if(state.mbal === 'custom'){ if(!(state.mbalv > 0)) state.mbalv = state.width/2; mbShow(); update(true); } });
+  mbIn.addEventListener('input', function(){ var v = parseIn(mbIn.value), ok = isFinite(v) && v >= 4 && v <= 480; mbIn.classList.toggle('bad', !ok); if(ok){ state.mbalv = v; update(true); } });
+  mbIn.addEventListener('blur', function(){ mbShow(); mbIn.classList.remove('bad'); });
+  // Metal cantilever: how many bays of bracing on the gate and on the balance (one diagonal per bay)
+  var mcFs = document.createElement('fieldset');
+  mcFs.innerHTML = '<legend>Bracing</legend>' +
+    '<div class="field"><label class="lbl" for="in_mgb">Gate braces</label><input type="text" id="in_mgb" inputmode="numeric" autocomplete="off"><div class="hint">Bays on the gate side, one diagonal in each. A vertical pipe sits between bays.</div></div>' +
+    '<div class="field"><label class="lbl" for="in_mbb">Balance braces</label><input type="text" id="in_mbb" inputmode="numeric" autocomplete="off"><div class="hint">Bays on the balance side, one diagonal in each.</div></div>';
+  segFs.mwire.parentNode.insertBefore(mcFs, segFs.mwire.nextSibling);
+  [['mgb','in_mgb'],['mbb','in_mbb']].forEach(function(pr){
+    var inp = mcFs.querySelector('#' + pr[1]); inp.value = state[pr[0]];
+    inp.addEventListener('input', function(){
+      var v = parseInt(inp.value, 10), ok = /^\s*\d+\s*$/.test(inp.value) && v >= 1 && v <= 20;
+      inp.classList.toggle('bad', !ok);
+      if(ok){ state[pr[0]] = v; update(true); }
+    });
+    inp.addEventListener('blur', function(){ inp.value = state[pr[0]]; inp.classList.remove('bad'); });
   });
   // Mid fascia / mid-rail boxes (Oklahoma): spaces are measured between the rails, from the top rail down
   function midBox(key, title, topName, lastKey, widthKey, opt){
@@ -3641,6 +3938,7 @@ if(typeof document !== 'undefined'){
   function sizeText(d){ return d.stock + ', ' + fmt(d.w) + ' x ' + fmt(d.t); }
 
   function renderPickets(){
+    if(state.material === 'metal'){ el('picketHost').innerHTML = ''; return; }      // metal has no pickets
     if(ilgOn()){ el('picketHost').innerHTML = ''; return; }      // the Illinois gate has its own fixed 1 1/2 spindle pickets, nothing to pick
     var tgMode = state.sides === 'double' && state.dstyle === 'tg';
     var list = listPickets(state.material, tgMode ? 'tg' : undefined);
@@ -3809,7 +4107,7 @@ if(typeof document !== 'undefined'){
     inp.value = fmt(state[d.key]);
     inp.addEventListener('input', function(){
       var v = parseIn(inp.value);
-      var ok = isFinite(v) && v >= d.min && v <= d.max, crownBlock = false;
+      var ok = isFinite(v) && v >= d.min && v <= ((d.key === 'width' && state.material === 'metal') ? 480 : d.max), crownBlock = false;
       if(ok && d.key === 'width' && pvcGateOn() && state.topRail !== 'none' && state.topper === 'none' && (v < GM.crownMin - 1e-9 || v > GM.crownMax + 1e-9)){ ok = false; crownBlock = true; }      // the crown rail is only made for 30 to 60 wide
       inp.classList.toggle('bad', !ok);
       if(crownBlock){ var bh = inp.parentNode.querySelector('.hint'); bh.style.color = '#b3261e'; bh.textContent = 'Not allowed: the ' + (state.topRail === 'SCALLOP' ? 'scallop' : 'crown') + ' rail is only made for gates ' + fmt(GM.crownMin) + ' to ' + fmt(GM.crownMax) + ' wide, so ' + fmt(v) + ' is blocked. The gate keeps its last good width.'; }
@@ -3824,8 +4122,8 @@ if(typeof document !== 'undefined'){
 
   function syncUI(){
     var tgMode = state.sides === 'double' && state.dstyle === 'tg', tgFence = tgMode && state.kind === 'fence';
-    SEGS.forEach(function(g){ if(g.when) segFs[g.key].style.display = g.when() ? '' : 'none'; });
-    if(presetFs) presetFs.style.display = state.sides === 'double' ? '' : 'none';      // presets are offered once Double sided is chosen
+    SEGS.forEach(function(g){ segFs[g.key].style.display = (!g.when || g.when()) ? '' : 'none'; });      // groups without a rule always show (Sides comes back after Metal hid it)
+    if(presetFs) presetFs.style.display = (state.sides === 'double' && state.material !== 'metal') ? '' : 'none';      // presets are offered once Double sided is chosen
     // a PVC gate's Oklahoma style is the code OKG-CUS with its description under it; the other builds keep the plain name
     var tgIn = segFs.dstyle && segFs.dstyle.querySelector('input[value="tg"]');
     if(tgIn && tgIn.nextElementSibling){
@@ -3853,6 +4151,15 @@ if(typeof document !== 'undefined'){
     gmidBox.fs.style.display = (state.kind === 'gate' && state.material === 'wood' && state.sides === 'single') ? '' : 'none';
     pmidBox.fs.style.display = pvcNow ? '' : 'none';
     ['gap','top','bottom'].forEach(function(k){ inputs[k].parentNode.style.display = (tgMode || ilgOn()) ? 'none' : ''; });
+    var metalNow = state.material === 'metal';      // metal shows only Material, Build, Balance, Flip, Wire and Bracing, plus the height and width
+    if(metalNow){
+      SEGS.forEach(function(g){ if(!g.metal && g.key !== 'material') segFs[g.key].style.display = 'none'; });
+      [midFs, fmidBox.fs, rmidBox.fs, gmidBox.fs, pmidBox.fs].forEach(function(x){ x.style.display = 'none'; });
+      ['gap','top','bottom'].forEach(function(k){ inputs[k].parentNode.style.display = 'none'; });
+    }
+    mcFs.style.display = metalNow ? '' : 'none';
+    mbFs.style.display = (metalNow && state.mbal === 'custom') ? '' : 'none';
+    el('picketHost').style.display = metalNow ? 'none' : '';
     // with a crown or scallop rail the open spindle scallop and crown toppers are not offered (the rail has its own curve); a gate that had it falls back to the open spindle topper
     var railNow = pvcG && state.topRail !== 'none';
     ['OSS', 'OSC'].forEach(function(ok){ var oi = segFs.topper.querySelector('input[value="' + ok + '"]'); if(oi) (oi.closest('label') || oi.parentNode).style.display = railNow ? 'none' : ''; });
@@ -3866,6 +4173,10 @@ if(typeof document !== 'undefined'){
     inputs.height.parentNode.querySelector('.hint').textContent = pvcNow ? 'Rail to rail, top and bottom. The posts are 4 taller.' : (pvcG ? (state.pframe === 'pocket' ? ((state.topper === 'OST' || state.topper === 'OSS') ? 'To the tip of the pickets. The posts are 2 taller, 1 above and 1 below.' : (state.topper === 'OSC') ? 'To the tip of the tallest pickets. The posts stand 1 above the end pickets and 1 below the bottom rail.' : 'Rail to rail. The posts are 2 taller, 1 above and 1 below.') : 'Overall, outside to outside') : (ilgOn() ? 'Overall, to the tip of the pyramid caps' : (tgMode ? 'Overall, not counting the cap board' : DIMS[0].hint)));
     var wHint = inputs.width.parentNode.querySelector('.hint'); wHint.style.color = '';
     wHint.textContent = pvcNow ? 'Space between the posts. The rails are 4 longer.' : (pvcG && state.pframe === 'pocket') ? 'Outside to outside of the posts.' : ((ilgOn() && state.topRail !== 'none') ? 'Outside to outside. The ' + (state.topRail === 'SCALLOP' ? 'scallop' : 'crown') + ' rail is only made for gates ' + fmt(GM.crownMin) + ' to ' + fmt(GM.crownMax) + ' wide.' : (pvcG && state.topRail !== 'none' && state.topper === 'none') ? 'Outside to outside. The ' + (state.topRail === 'SCALLOP' ? 'scallop' : 'crown') + ' rail is only made for gates ' + fmt(GM.crownMin) + ' to ' + fmt(GM.crownMax) + ' wide.' : 'Outside to outside');
+    if(metalNow){
+      inputs.height.parentNode.querySelector('.hint').textContent = 'Top of the end pipes to the bottom of the end pipes. The frame sits 4 down from the top and 2 up from the bottom.';
+      wHint.textContent = 'Gate side (dimension 1): the clear space between the inside of the end pipe and the inside of the junction pipe. The balance starts where this ends and includes the junction pipe.';
+    }
   }
   function update(fromTyping){
     syncUI();
@@ -3879,17 +4190,18 @@ if(typeof document !== 'undefined'){
     if(c.pv){ var ph = el(pmidBox.hint); if(ph) ph.textContent = 'Spaces are measured between the rails, from the top rail down. Last space, to the bottom rail: ' + fmt(c.pv.lastSpace); }
     if(state.kind === 'gate' && state.material === 'wood' && state.sides === 'single'){ var gh = el(gmidBox.hint); if(gh) gh.textContent = 'Spaces are measured between the rails, from the top rail down.' + (c.gml ? ' Last space, to the bottom rail: ' + fmt(c.gml.lastSpace) : '') + ' The brace covers the whole opening, cut to fit between the rails.'; }
     if(c.rl){ var rh = el(rmidBox.hint); if(rh) rh.textContent = 'Spaces are measured between the rails, from the top rail down. Last space, to the bottom rail: ' + fmt(c.rl.lastSpace); }
-    el('lb_width').textContent = state.kind === 'gate' ? 'Gate width' : 'Section width';
+    el('lb_width').textContent = (state.kind === 'gate' || state.material === 'metal') ? 'Gate width' : 'Section width';
+    ['btnStepOne','btnStepAll','btnStepAsm','stepGrp','stepHint'].forEach(function(id){ var n = el(id); if(n) n.style.display = state.material === 'metal' ? 'none' : ''; });      // no STEP export for the metal gate yet
     el('btnStepAsm').textContent = state.kind === 'gate' ? 'Full gate' : 'Full fence section';
-    el('gateOnly').style.display = (state.kind === 'gate' && !pvcGateOn() && !ilgOn()) ? '' : 'none';
+    el('gateOnly').style.display = (state.kind === 'gate' && !pvcGateOn() && !ilgOn() && state.material !== 'metal') ? '' : 'none';
     el('preview').innerHTML = svgString(c);
     el('preview').classList.toggle('is-hidden', state.view === 'sheet');
     el('sheet').classList.toggle('is-hidden', state.view !== 'sheet');
     if(state.view === 'sheet') el('sheet').innerHTML = sheetSvg(c, sheetInfo());
     el('showDims').style.display = (state.hiddenDims && state.hiddenDims.length) ? '' : 'none';
     el('warn').innerHTML = c.warn.map(function(w){ return '<p>'+w+'</p>'; }).join('');
-    var mat = state.material === 'wood' ? 'Wood' : 'PVC';
-    var sum = mat + ' ' + (state.kind === 'gate' ? 'gate' : 'fence section') + ', ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' +
+    var mat = state.material === 'wood' ? 'Wood' : (state.material === 'metal' ? 'Metal' : 'PVC');
+    var sum = c.metal ? ('Metal cantilever gate, ' + fmt(c.metal.G) + ' gate + ' + fmt(c.metal.B) + ' balance = ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' + c.metal.ng + ' gate and ' + c.metal.nb + ' balance braces' + (c.metal.wire ? ', black wire' : '')) : mat + ' ' + (state.kind === 'gate' ? 'gate' : 'fence section') + ', ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' +
       (c.ilg ? 'Illinois gate, spindle pickets' + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : ', crown rail') : '') : c.mode === 'tg' ? 'Oklahoma T&G' + (c.pocket ? ' pocket' : '') + ', ' + c.pk.name + ' boards' + (c.topper ? ', ' + ({CST:'closed spindle', OEN:'old English', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : ', crown rail') : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + ', ' + c.pk.name + ' pickets' + (c.mode === 'both' ? ', both sides' : ''));
     el('summary').textContent = sum;
     el('printmeta').textContent = 'AII ' + sum + '  (' + new Date().toLocaleDateString() + ')';
@@ -3940,7 +4252,7 @@ if(typeof document !== 'undefined'){
   }
   el('btnDxf').addEventListener('click', function(){
     var c = compute(state);
-    download(state.material + '-' + state.kind + '-' + Math.round(c.W) + 'x' + Math.round(c.H) + '.dxf', dxfString(c), 'application/dxf');
+    download(state.material + '-' + (state.material === 'metal' ? 'cantilever' : state.kind) + '-' + Math.round(c.W) + 'x' + Math.round(c.H) + '.dxf', dxfString(c), 'application/dxf');
   });
   [['btnStepOne','one'],['btnStepAll','all'],['btnStepAsm','asm']].forEach(function(b){
     el(b[0]).addEventListener('click', function(){
