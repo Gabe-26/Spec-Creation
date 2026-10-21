@@ -320,7 +320,7 @@ function dowelPart(name, kind, y0, y1, xa, xb, zb, zt){
 var DEFAULTS = {
   material:'wood', kind:'gate', frame:'2x4', style:'lib_seed-gothic4',
   height:56, width:34, gap:2, top:6, bottom:7,
-  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
+  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
   so:'', drawn:'', notes:'', copy:'customer', sheetDims:true, view:'work'
 };
 
@@ -422,6 +422,7 @@ setLibrary(JSON.parse(JSON.stringify(SEED_PICKETS)), {dogear:true});
 // runs to the inside of the far end pipe, so the junction pipe is part of the balance. Overall length = 1 + 2 + the two 2 in. end pipes.
 var MC = {rail:2.5, vert:2, diag:1.625, endP:2, up:4, down:2};
 var MC_GATE = '#c9cdca', MC_BALC = '#2b2d2f', MC_BAR = '#8e938f', MC_CLIP = '#4a4f4c';
+var MC_SG = 1.625;      // pipe size of the swing gate frame (my pick, the same as the braces)
 var MC_TB = 1;      // the flat tension bar that holds the wire, on the end pipe and on the junction pipe (width seen from the front; my pick)
 var MC_PAL = {gate:['#666b68','#a0a5a2','#f0f2f0','#c8cdca','#8a8f8c','#5a5f5d'], bal:['#0e1011','#27292b','#6d7377','#3c4043','#202224','#0b0c0d'], at:[0, 0.18, 0.34, 0.55, 0.82, 1]};
 function mcPipe(p, X, Y, sc, id){      // a round-pipe look: a gradient across the pipe, lightest toward the upper left. Returns {def, fill}, or null for flat parts
@@ -450,21 +451,26 @@ function computeCantilever(s){
   }
   if(zT - zB < 1) warn.push('The overall height of ' + fmt(H) + ' leaves no room between the rails (the frame takes 4 above, 2 below and two 2 1/2 rails).');
   // centers of every upright from end to end: the left end pipe, the gate verticals, the junction, the balance verticals, the right end pipe
+  // swing gate opening: sits against the end pipe, at the far end of the gate from the balance, and is the swing gate's width + 4 (2 in. each side); the gate width stays the same, so the braced bays get narrower
+  var Ws = +s.mswv || 0, sw = (s.mswing === 'on' && Ws >= 1) ? Ws + 4 : 0;
+  if(sw && G - sw - 2 < 6){ warn.push('The ' + fmt(sw) + ' swing gate opening leaves no room for the braced bays in a ' + fmt(G) + ' gate, so it is left off.'); sw = 0; }
+  var cn = sw ? 2 + sw + 1 : 1, xs = sw ? cn + 1 : 2;      // cn: center of the upright on the far side of the opening (or the end pipe when there is no opening); xs: where the braced run and its wire start
   var ups = [1];
-  for(k=1;k<ng;k++) ups.push(1 + k*(cj-1)/ng);
+  if(sw) ups.push(cn);
+  for(k=1;k<ng;k++) ups.push(cn + k*(cj-cn)/ng);
   ups.push(cj);
   for(k=1;k<nb;k++) ups.push(cj + k*(L-1-cj)/nb);
   ups.push(L-1);
   for(k=0;k<ups.length-1;k++) if(ups[k+1] - ups[k] - MC.vert < 1){ warn.push('The bays are too narrow for that many braces. Lower the gate or balance brace count, or make the gate wider.'); break; }
   if(s.mwire === 'on'){      // black wire between the two gate uprights, held by a flat tension bar against each one, with a clip about every 18 in. bolting the bar to the pipe
-    add('wirebg', 'FRAME', rect(2 + MC_TB, zB, xj0 - MC_TB, zT), false, '#ffffff');      // white behind the mesh, so the mesh itself can be see-through
-    add('wire', 'FRAME', rect(2 + MC_TB, zB, xj0 - MC_TB, zT), false, 'wire');
-    add('tbar', 'FRAME', rect(2, zB, 2 + MC_TB, zT), false, MC_BAR);
+    add('wirebg', 'FRAME', rect(xs + MC_TB, zB, xj0 - MC_TB, zT), false, '#ffffff');      // white behind the mesh, so the mesh itself can be see-through
+    add('wire', 'FRAME', rect(xs + MC_TB, zB, xj0 - MC_TB, zT), false, 'wire');
+    add('tbar', 'FRAME', rect(xs, zB, xs + MC_TB, zT), false, MC_BAR);
     add('tbar', 'FRAME', rect(xj0 - MC_TB, zB, xj0, zT), false, MC_BAR);
     var ncl = Math.max(2, Math.floor((zT - zB - 4)/18) + 1), ci;      // clips exactly 18 in. apart, centered on the opening
     for(ci=0; ci<ncl; ci++){
       var zc = (zB + zT)/2 + (ci - (ncl - 1)/2)*((ncl > 2 || (zT - zB) >= 22) ? 18 : (zT - zB - 4));
-      add('clip', 'FRAME', rect(2, zc - 0.75, 2 + 2*MC_TB + 0.5, zc + 0.75), false, MC_CLIP);
+      add('clip', 'FRAME', rect(xs, zc - 0.75, xs + 2*MC_TB + 0.5, zc + 0.75), false, MC_CLIP);
       add('clip', 'FRAME', rect(xj0 - 2*MC_TB - 0.5, zc - 0.75, xj0, zc + 0.75), false, MC_CLIP);
     }
   }
@@ -473,6 +479,7 @@ function computeCantilever(s){
   for(k=0;k<ups.length-1;k++){
     var xl = ups[k] + MC.vert/2, xr = ups[k+1] - MC.vert/2, isBal = ups[k] >= cj - 1e-9;
     if(xr - xl < 0.5 || zT - zB < 1) continue;
+    if(sw && k === 0) continue;      // nothing across the swing gate opening, which sits against the end pipe
     add('mdiag', 'BRACE', isBal ? mcBand(xl, zB, xr, zT, MC.diag, xl, zB, xr, zT) : mcBand(xl, zT, xr, zB, MC.diag, xl, zB, xr, zT), isBal, null, isBal ? [xl, zB, xr, zT, MC.diag] : [xl, zT, xr, zB, MC.diag]);      // gate diagonals run down toward the junction, balance diagonals up away from it
   }
   [[MC.down, MC.down + MC.rail],[H - MC.up - MC.rail, H - MC.up]].forEach(function(r){
@@ -480,19 +487,41 @@ function computeCantilever(s){
     add('mrail', 'FRAME', rect(2, r[0], xj0, r[1]), false, null, [2, zc2, xj0, zc2, MC.rail]);
     add('mrail', 'FRAME', rect(xj0, r[0], L - 2, r[1]), true, null, [xj0, zc2, L - 2, zc2, MC.rail]);      // the black side starts at the gate-side face of the junction pipe, so it is one closed frame
   });
+  var sgTop = null;
+  if(sw){      // the swing gate itself: two uprights 2 in. in from each side of the opening, 1 in. under the top rail and 1 in. above the bottom rail, with a pipe across between them that sits 1 1/2 in. below the top of the uprights at the top and 1/2 in. above their bottom at the bottom
+    var sx0 = 2 + 2, sx1 = 2 + sw - 2, sz0 = zB + 1, sz1 = zT - 1, dd = MC_SG;
+    if(s.mwire === 'on'){      // black wire fills the swing gate between its uprights and its two horizontal pipes, held by a tension bar against each upright with clips, like the main gate
+      var wz0 = sz0 + 0.5 + dd, wz1 = sz1 - 1.5 - dd, wx0 = sx0 + dd, wx1 = sx1 - dd;
+      add('wirebg', 'FRAME', rect(wx0 + MC_TB, wz0, wx1 - MC_TB, wz1), false, '#ffffff');
+      add('wire', 'FRAME', rect(wx0 + MC_TB, wz0, wx1 - MC_TB, wz1), false, 'wire');
+      add('tbar', 'FRAME', rect(wx0, wz0, wx0 + MC_TB, wz1), false, MC_BAR);
+      add('tbar', 'FRAME', rect(wx1 - MC_TB, wz0, wx1, wz1), false, MC_BAR);
+      var hz = wz1 - wz0, nsc = Math.max(2, Math.floor((hz - 4)/18) + 1), si;      // clips 18 in. apart, centered
+      for(si=0; si<nsc; si++){
+        var zs = (wz0 + wz1)/2 + (si - (nsc - 1)/2)*((nsc > 2 || hz >= 22) ? 18 : (hz - 4));
+        add('clip', 'FRAME', rect(wx0, zs - 0.75, wx0 + 2*MC_TB + 0.5, zs + 0.75), false, MC_CLIP);
+        add('clip', 'FRAME', rect(wx1 - 2*MC_TB - 0.5, zs - 0.75, wx1, zs + 0.75), false, MC_CLIP);
+      }
+    }
+    add('sg', 'FRAME', rect(sx0 + dd, sz0 + 0.5, sx1 - dd, sz0 + 0.5 + dd), false, null, [sx0 + dd, sz0 + 0.5 + dd/2, sx1 - dd, sz0 + 0.5 + dd/2, dd]);
+    add('sg', 'FRAME', rect(sx0 + dd, sz1 - 1.5 - dd, sx1 - dd, sz1 - 1.5), false, null, [sx0 + dd, sz1 - 1.5 - dd/2, sx1 - dd, sz1 - 1.5 - dd/2, dd]);
+    add('sg', 'FRAME', rect(sx0, sz0, sx0 + dd, sz1), false, null, [sx0 + dd/2, sz0, sx0 + dd/2, sz1, dd]);
+    add('sg', 'FRAME', rect(sx1 - dd, sz0, sx1, sz1), false, null, [sx1 - dd/2, sz0, sx1 - dd/2, sz1, dd]);
+    sgTop = [[mx((sx0 + sx1)/2), sz1 - 1.5 - dd/2]];
+  }
   var bays = [];      // the clear space between each pair of neighbouring uprights, where a brace sits (in drawn, front-view x)
   for(k=0;k<ups.length-1;k++){ var ba = ups[k] + MC.vert/2, bb = ups[k+1] - MC.vert/2; bays.push({x0:Math.min(mx(ba), mx(bb)), x1:Math.max(mx(ba), mx(bb))}); }
   add('mend', 'FRAME', rect(0, 0, MC.endP, H), false, null, [MC.endP/2, 0, MC.endP/2, H, MC.endP]);
   add('mend', 'FRAME', rect(L - MC.endP, 0, L, H), true, null, [L - MC.endP/2, 0, L - MC.endP/2, H, MC.endP]);
-  var b0 = [ups[0] + MC.vert/2, ups[1] - MC.vert/2], zm = (zB + zT)/2, zr = H - MC.up - MC.rail/2;
-  var dk = ng - 1, dxl = ups[dk] + MC.vert/2, dxr = ups[dk + 1] - MC.vert/2, dgx = dxl + (dxr - dxl)*0.16, dgz = zT - (zT - zB)*0.16;      // a point on the last gate diagonal, just in from its top end
+  var bi = sw ? 1 : 0, b0 = [ups[bi] + MC.vert/2, ups[bi + 1] - MC.vert/2], zm = (zB + zT)/2, zr = H - MC.up - MC.rail/2;
+  var dk = ng - 1 + bi, dxl = ups[dk] + MC.vert/2, dxr = ups[dk + 1] - MC.vert/2, dgx = dxl + (dxr - dxl)*0.16, dgz = zT - (zT - zB)*0.16;      // a point on the last gate diagonal, just in from its top end
   return {
-    metal:{bays:bays, G:G, B:B, L:L, H:H, flip:flip, ng:ng, nb:nb, zB:zB, zT:zT, wire:s.mwire === 'on', xj:mx(cj),
+    metal:{sw:sw ? {open:sw, ws:Ws, h:sz1 - sz0, x0:Math.min(mx(sx0), mx(sx1)), x1:Math.max(mx(sx0), mx(sx1)), z0:sz0, z1:sz1} : null, bays:bays, G:G, B:B, L:L, H:H, flip:flip, ng:ng, nb:nb, zB:zB, zT:zT, wire:s.mwire === 'on', xj:mx(cj),
       gx0:flip ? L - xj0 : 2, gx1:flip ? L - 2 : xj0, bx0:flip ? 2 : xj0, bx1:flip ? L - xj0 : L - 2,
-      tg:{rail:[[mx(2 + G*0.2), zr],[mx(2 + G*0.5), zr]], vert:[[mx(ups[1]), zT - (zT - zB)*0.12]], diag:[[mx(dgx), dgz]], end:[[mx(MC.endP/2), H*0.5]],
-        wire:[[mx(b0[0] + (b0[1] - b0[0])*0.8), zB + (zT - zB)*0.78],[mx(b0[0] + (b0[1] - b0[0])*0.2), zB + (zT - zB)*0.22]]}},
+      tg:{rail:[[mx(2 + G*0.2), zr],[mx(2 + G*0.5), zr]], vert:[[mx(ups[bi + 1]), zT - (zT - zB)*0.12]], diag:[[mx(dgx), dgz]], end:[[mx(MC.endP/2), H*0.5]],
+        wire:[[mx(b0[0] + (b0[1] - b0[0])*0.8), zB + (zT - zB)*0.78],[mx(b0[0] + (b0[1] - b0[0])*0.2), zB + (zT - zB)*0.22]], sg:sgTop}},
     s:s, W:L, H:H, parts:parts, pickets:[], warn:warn,
-    partsFront:parts.filter(function(q){ return q.kind === 'wirebg'; }).concat(['mvert', 'mdiag', 'mrail', 'mend'].reduce(function(acc, kd){ return acc.concat(parts.filter(function(q){ return q.kind === kd; })); }, []), parts.filter(function(q){ return q.kind === 'wire' || q.kind === 'tbar' || q.kind === 'clip'; }))      // front view: the wire is on the front of the frame, so it is painted over the braces and middle uprights
+    partsFront:parts.filter(function(q){ return q.kind === 'wirebg'; }).concat(['mvert', 'mdiag', 'mrail', 'mend', 'sg'].reduce(function(acc, kd){ return acc.concat(parts.filter(function(q){ return q.kind === kd; })); }, []), parts.filter(function(q){ return q.kind === 'wire' || q.kind === 'tbar' || q.kind === 'clip'; }))      // front view: the wire is on the front of the frame, so it is painted over the braces and middle uprights
   };
 }
 function metalDrawing(c){      // working view: the front elevation with its dimensions, in inches
@@ -503,6 +532,10 @@ function metalDrawing(c){      // working view: the front elevation with its dim
   dims.push({k:'v', x:xr, za:0, zb:H, fa:W, fb:W, label:fmt(H), side:1});
   dims.push({k:'v', x:xl, za:H - MC.up, zb:H, fa:0, fb:0, label:fmt(MC.up), side:-1});
   dims.push({k:'v', x:xl, za:0, zb:MC.down, fa:0, fb:0, label:fmt(MC.down), side:-1});
+  if(m.sw){
+    dims.push({k:'h', xa:m.sw.x0, xb:m.sw.x1, z:zb - fs*3, fa:MC.down, fb:MC.down, label:fmt(m.sw.ws), side:1});
+    dims.push({k:'v', x:m.flip ? xr + fs*3 : xl - fs*3, za:m.sw.z0, zb:m.sw.z1, fa:m.flip ? m.sw.x1 : m.sw.x0, fb:m.flip ? m.sw.x1 : m.sw.x0, label:fmt(m.sw.h), side:m.flip ? 1 : -1});
+  }
   var lines = [], texts = [];
   function Ln(a, b){ lines.push({a:a, b:b, layer:'DIMS'}); }
   function tick(x, z){ var t = fs*0.28; Ln([x - t, z - t], [x + t, z + t]); }
@@ -517,7 +550,7 @@ function metalDrawing(c){      // working view: the front elevation with its dim
       texts.push({x:d.x + d.side*fs*1.2, z:(d.za + d.zb)/2, s:d.label, size:fs, anchor:'middle', rot:90});
     }
   });
-  return {polys:c.partsFront, dims:dims, notes:[], lines:lines, texts:texts, view:{x0:-fs*7, x1:W + fs*7, z0:-fs*7, z1:H + fs*6}, fs:fs};
+  return {polys:c.partsFront, dims:dims, notes:[], lines:lines, texts:texts, view:{x0:m.sw ? -fs*10 : -fs*7, x1:W + (m.sw ? fs*10 : fs*7), z0:m.sw ? -fs*10 : -fs*7, z1:H + fs*6}, fs:fs};
 }
 function metalSheetSvg(c, info){      // the cantilever drawing sheet: front view on top, back view below, material specification at the top right
   var m = c.metal, L = m.L, H = m.H, GREEN = '#1d6b32', BLUE = '#1f3fe0', INK = '#111', STK = '#2a2f33', o = [];
@@ -554,11 +587,14 @@ function metalSheetSvg(c, info){      // the cantilever drawing sheet: front vie
   var dimsOn = !!info.dims, frontOff = !!info.frontOff, backOff = !!info.backOff;
   var stF = {size:9.5, color:DIM_RED, sw:0.6, obs:[]};
   var fBox = {x0:8, x1:757, y0:34, y1:274}, bBox = {x0:8, x1:915, y0:303, y1:543};
-  var fPad = dimsOn ? {l:46, r:46, t:32, b:40} : {l:10, r:10, t:32, b:10}, bPad = dimsOn ? {l:10, r:10, t:40, b:10} : {l:10, r:10, t:10, b:10};
+  var fPad = dimsOn ? {l:46, r:46, t:32, b:40} : {l:10, r:10, t:32, b:10}, bPad = dimsOn ? {l:(m.sw && m.flip) ? 74 : 46, r:(m.sw && !m.flip) ? 74 : 46, t:40, b:m.sw ? 36 : 10} : {l:10, r:10, t:10, b:10};
   var fW = fBox.x1 - fBox.x0 - fPad.l - fPad.r, fH = fBox.y1 - fBox.y0 - fPad.t - fPad.b;
   var bW = bBox.x1 - bBox.x0 - bPad.l - bPad.r, bH = bBox.y1 - bBox.y0 - bPad.t - bPad.b;
   var sc = backOff ? Math.min(fW/L, fH/H) : (frontOff ? Math.min(bW/L, bH/H) : Math.min(fW/L, fH/H, bW/L, bH/H));      // both views are drawn at the same size
-  var ox = frontOff ? bBox.x0 + bPad.l + (bW - sc*L)/2 : fBox.x0 + fPad.l + (fW - sc*L)/2;
+  // both views share one left edge, so keep the drawing inside the room each of them has once its own dimensions are counted
+  var loX = Math.max(frontOff ? -1e9 : fBox.x0 + fPad.l, backOff ? -1e9 : bBox.x0 + bPad.l), hiX = Math.min(frontOff ? 1e9 : fBox.x1 - fPad.r, backOff ? 1e9 : bBox.x1 - bPad.r);
+  if(loX > -1e8 && hiX < 1e8) sc = Math.min(sc, (hiX - loX)/L);
+  var ox = (loX > -1e8 && hiX < 1e8) ? (loX + hiX - sc*L)/2 : fBox.x0 + 10;
   function FX(x){ return ox + sc*x; }
   function FY(z){ return fBox.y1 - fPad.b - (fH - sc*H)/2 - sc*z; }
   function BY(z){ return bBox.y1 - bPad.b - (bH - sc*H)/2 - sc*z; }
@@ -604,6 +640,7 @@ function metalSheetSvg(c, info){      // the cantilever drawing sheet: front vie
     {L:'D', size:'SS 40 - ' + fmt(MC.endP), name:'GALV END PIPE', key:'end', pref:180}
   ];
   if(m.wire) rows.push({L:'E', size:'2 X 9', name:'BLACK WIRE', key:'wire', pref:270});
+  if(m.sw) rows.push({L:m.wire ? 'F' : 'E', size:fmt(m.sw.ws) + ' X ' + fmt(m.sw.h), name:'SWING GATE', key:'sg', pref:270});
   rows.forEach(function(r){
     drawCallout(r.L, placeCallout(m.tg[r.key].map(function(q){ return [FX(q[0]), FY(q[1])]; }), r.pref, ctxF));
   });
@@ -616,6 +653,14 @@ function metalSheetSvg(c, info){      // the cantilever drawing sheet: front vie
   o.push('<g data-viewtoggle="back" style="cursor:pointer"><title>Click to hide the back view</title>'); titleBox(381, 277, 'BACK VIEW'); o.push('</g>');
   if(dimsOn){      // the clear space in each bay, between the inside faces of the uprights where a brace goes, rounded up to the next 1/8
     var stB = {size:9.5, color:DIM_RED, sw:0.6, obs:[]}, ybb = BY(H) - 24;
+    if(m.sw){      // the swing gate: its width along the bottom and its height on the end pipe side it sits against (the back view is mirrored)
+      var swd = m.sw, xeb = m.flip ? FX(0) - 26 : FX(L) + 26, feb = m.flip ? FX(L - swd.x1) : FX(L - swd.x0);
+      o.push(dimH(FX(L - swd.x1), FX(L - swd.x0), BY(0) + 24, fmt(swd.ws), BY(MC.down), BY(MC.down), stB, 1));
+      o.push(dimV(xeb, BY(swd.z1), BY(swd.z0), fmt(swd.h), feb, feb, stB, m.flip ? -1 : 1));
+    }
+    // top of the top rail to the bottom of the bottom rail, beside the swing gate's height when there is a swing gate (just outside it), otherwise on the right
+    var rOnLeft = m.sw ? m.flip : false, rGap = m.sw ? 52 : 26, xrf = rOnLeft ? FX(0) - rGap : FX(L) + rGap, frf = rOnLeft ? FX(0) : FX(L);
+    o.push(dimV(xrf, BY(H - MC.up), BY(MC.down), fmt(H - MC.up - MC.down), frf, frf, stB, rOnLeft ? -1 : 1));
     m.bays.forEach(function(bay){ o.push(dimH(FX(L - bay.x1), FX(L - bay.x0), ybb, '\u00b1' + fmt(Math.ceil((bay.x1 - bay.x0)*8 - 1e-9)/8), BY(H - MC.up), BY(H - MC.up), stB, -1)); });
   }
   if(backOff) o.length = backStart;
@@ -3631,6 +3676,7 @@ if(typeof document !== 'undefined'){
     {key:'mbal', label:'Balance size', metal:true, choices:[['half','1/2 (recommended)'],['custom','Custom']], when:function(){ return state.material === 'metal'; }},
     {key:'mflip', label:'Flip', metal:true, choices:[['right','Balance on right'],['left','Balance on left']], when:function(){ return state.material === 'metal'; }},
     {key:'mwire', label:'Black wire (gate side only)', metal:true, choices:[['off','Off'],['on','On']], when:function(){ return state.material === 'metal'; }},
+    {key:'mswing', label:'Swing gate opening', metal:true, choices:[['off','Off'],['on','On']], when:function(){ return state.material === 'metal'; }},
     {key:'sides', label:'Sides', choices:[['single','Single sided'],['double','Double sided']]},
     {key:'dstyle', label:'Double sided style', choices:[['both','Pickets both sides'],['tg','T&G (Oklahoma)'],['ilg','ILG-CUS<small>(Illinois gate)</small>']], when:function(){ return state.sides === 'double'; }},
     {key:'align', label:'Back pickets', choices:[['aligned','Directly behind'],['stagger','Staggered in the gaps']], when:function(){ return state.sides === 'double' && state.dstyle === 'both'; }},
@@ -3702,6 +3748,15 @@ if(typeof document !== 'undefined'){
   segFs.mbal.addEventListener('change', function(){ if(state.mbal === 'custom'){ if(!(state.mbalv > 0)) state.mbalv = state.width/2; mbShow(); update(true); } });
   mbIn.addEventListener('input', function(){ var v = parseIn(mbIn.value), ok = isFinite(v) && v >= 4 && v <= 480; mbIn.classList.toggle('bad', !ok); if(ok){ state.mbalv = v; update(true); } });
   mbIn.addEventListener('blur', function(){ mbShow(); mbIn.classList.remove('bad'); });
+  // Metal: the swing gate's width, shown when the opening is on. The opening is 4 in. wider (2 in. each side) and takes its room out of the gate width.
+  var msFs = document.createElement('fieldset');
+  msFs.innerHTML = '<div class="field"><label class="lbl" for="in_mswv">Swing gate width</label><input type="text" id="in_mswv" inputmode="decimal" autocomplete="off"><div class="hint" id="mswHint"></div></div>';
+  segFs.mswing.parentNode.insertBefore(msFs, segFs.mswing.nextSibling);
+  var msIn = msFs.querySelector('#in_mswv');
+  function msShow(){ msIn.value = fmt(state.mswv); }
+  msShow();
+  msIn.addEventListener('input', function(){ var v = parseIn(msIn.value), ok = isFinite(v) && v >= 12 && v <= 480; msIn.classList.toggle('bad', !ok); if(ok){ state.mswv = v; update(true); } });
+  msIn.addEventListener('blur', function(){ msShow(); msIn.classList.remove('bad'); });
   // Metal cantilever: how many bays of bracing on the gate and on the balance (one diagonal per bay)
   var mcFs = document.createElement('fieldset');
   mcFs.innerHTML = '<legend>Bracing</legend>' +
@@ -4159,6 +4214,7 @@ if(typeof document !== 'undefined'){
     }
     mcFs.style.display = metalNow ? '' : 'none';
     mbFs.style.display = (metalNow && state.mbal === 'custom') ? '' : 'none';
+    msFs.style.display = (metalNow && state.mswing === 'on') ? '' : 'none';
     el('picketHost').style.display = metalNow ? 'none' : '';
     // with a crown or scallop rail the open spindle scallop and crown toppers are not offered (the rail has its own curve); a gate that had it falls back to the open spindle topper
     var railNow = pvcG && state.topRail !== 'none';
@@ -4191,6 +4247,7 @@ if(typeof document !== 'undefined'){
     if(state.kind === 'gate' && state.material === 'wood' && state.sides === 'single'){ var gh = el(gmidBox.hint); if(gh) gh.textContent = 'Spaces are measured between the rails, from the top rail down.' + (c.gml ? ' Last space, to the bottom rail: ' + fmt(c.gml.lastSpace) : '') + ' The brace covers the whole opening, cut to fit between the rails.'; }
     if(c.rl){ var rh = el(rmidBox.hint); if(rh) rh.textContent = 'Spaces are measured between the rails, from the top rail down. Last space, to the bottom rail: ' + fmt(c.rl.lastSpace); }
     el('lb_width').textContent = (state.kind === 'gate' || state.material === 'metal') ? 'Gate width' : 'Section width';
+    var mh = el('mswHint'); if(mh) mh.textContent = (c.metal && c.metal.sw) ? ('Opening ' + fmt(c.metal.sw.open) + ' wide (2" each side). The swing gate is ' + fmt(c.metal.sw.h) + ' high, with 1" under the top rail and 1" above the bottom rail.') : 'Type the swing gate itself. The opening is 4" wider and comes out of the gate width.';
     ['btnStepOne','btnStepAll','btnStepAsm','stepGrp','stepHint'].forEach(function(id){ var n = el(id); if(n) n.style.display = state.material === 'metal' ? 'none' : ''; });      // no STEP export for the metal gate yet
     el('btnStepAsm').textContent = state.kind === 'gate' ? 'Full gate' : 'Full fence section';
     el('gateOnly').style.display = (state.kind === 'gate' && !pvcGateOn() && !ilgOn() && state.material !== 'metal') ? '' : 'none';
@@ -4201,7 +4258,7 @@ if(typeof document !== 'undefined'){
     el('showDims').style.display = (state.hiddenDims && state.hiddenDims.length) ? '' : 'none';
     el('warn').innerHTML = c.warn.map(function(w){ return '<p>'+w+'</p>'; }).join('');
     var mat = state.material === 'wood' ? 'Wood' : (state.material === 'metal' ? 'Metal' : 'PVC');
-    var sum = c.metal ? ('Metal cantilever gate, ' + fmt(c.metal.G) + ' gate + ' + fmt(c.metal.B) + ' balance = ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' + c.metal.ng + ' gate and ' + c.metal.nb + ' balance braces' + (c.metal.wire ? ', black wire' : '')) : mat + ' ' + (state.kind === 'gate' ? 'gate' : 'fence section') + ', ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' +
+    var sum = c.metal ? ('Metal cantilever gate, ' + fmt(c.metal.G) + ' gate + ' + fmt(c.metal.B) + ' balance = ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' + c.metal.ng + ' gate and ' + c.metal.nb + ' balance braces' + (c.metal.wire ? ', black wire' : '') + (c.metal.sw ? ', swing gate opening ' + fmt(c.metal.sw.open) : '')) : mat + ' ' + (state.kind === 'gate' ? 'gate' : 'fence section') + ', ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' +
       (c.ilg ? 'Illinois gate, spindle pickets' + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : ', crown rail') : '') : c.mode === 'tg' ? 'Oklahoma T&G' + (c.pocket ? ' pocket' : '') + ', ' + c.pk.name + ' boards' + (c.topper ? ', ' + ({CST:'closed spindle', OEN:'old English', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : ', crown rail') : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + ', ' + c.pk.name + ' pickets' + (c.mode === 'both' ? ', both sides' : ''));
     el('summary').textContent = sum;
     el('printmeta').textContent = 'AII ' + sum + '  (' + new Date().toLocaleDateString() + ')';
