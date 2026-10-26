@@ -320,7 +320,7 @@ function dowelPart(name, kind, y0, y1, xa, xb, zb, zt){
 var DEFAULTS = {
   material:'wood', kind:'gate', frame:'2x4', style:'lib_seed-gothic4',
   height:56, width:34, gap:2, top:6, bottom:7,
-  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', ddgTLay:'one', ddgTR:6, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
+  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', ddgTLay:'one', ddgShE:4, ddgShM:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
   so:'', drawn:'', notes:'', copy:'customer', sheetDims:true, view:'work'
 };
 
@@ -1392,10 +1392,17 @@ function computeDDG(s){
   // Toppers (Oklahoma gate, Gate Master frame, no top rail): each leaf gets the same topper. The open spindle crown and scallop come two ways: one arch over the pair (the tips follow one curve across both
   // leaves) or a crown / scallop on each leaf. On the crown the Overall height is the tips of the first and last pickets and the rise goes on top of it; on the scallop it is the tips of the end pickets and the drop goes below.
   var tpOK = (!s.topRail || s.topRail === 'none') && s.dstyle === 'tg' && s.pframe !== 'pocket' && s.topper && s.topper !== 'none', tp = tpOK ? s.topper : 'none';
-  var tArch = (tp === 'OSS' || tp === 'OSC'), tOne = tArch && s.ddgTLay !== 'each', tR = tArch ? (+s.ddgTR >= 0 ? +s.ddgTR : GM.scDrop) : 0, tWarn = [];
-  if(tp === 'OSS' && tR > GM.scShow - 2){ tR = GM.scShow - 2; tWarn.push('The scallop can drop at most ' + fmt(tR) + ' here, so the center pickets still show above the Gate Rail. It is drawn at ' + fmt(tR) + '.'); }
+  var tArch = (tp === 'OSS' || tp === 'OSC'), tOne = tArch && s.ddgTLay !== 'each', tWarn = [];
+  // how much the pickets show above the Gate Rail: at the ends (the first and last pickets) and at the tallest (crown) or at the middle (scallop); the rise or drop is the difference
+  var tE = tArch ? (+s.ddgShE > 0 ? +s.ddgShE : (tp === 'OSS' ? GM.scShow : GM.scShow - GM.scDrop)) : 0, tM = tArch ? (+s.ddgShM > 0 ? +s.ddgShM : (tp === 'OSS' ? GM.scShow - GM.scDrop : GM.scShow)) : 0;
+  if(tArch && tE < 2){ tE = 2; tWarn.push('The end pickets must show at least ' + fmt(2) + ' above the Gate Rail. They are drawn at ' + fmt(2) + '.'); }
+  if(tArch && tM < 2){ tM = 2; tWarn.push('The ' + (tp === 'OSS' ? 'middle' : 'tallest') + ' pickets must show at least ' + fmt(2) + ' above the Gate Rail. They are drawn at ' + fmt(2) + '.'); }
+  if(tp === 'OSC' && tM < tE){ tWarn.push('On the crown the tallest pickets cannot show less than the end pickets, so the tops are drawn level at ' + fmt(tE) + '.'); tM = tE; }
+  if(tp === 'OSS' && tM > tE){ tWarn.push('On the scallop the middle pickets cannot show more than the end pickets, so the tops are drawn level at ' + fmt(tE) + '.'); tM = tE; }
+  var tR = tArch ? Math.abs(tM - tE) : 0;
+
   var base = Object.assign({}, s, {width:Wl, ddg:'off', topper:tp, topRail:((rail || crSel) ? s.topRail : 'none'), ddgRise:rise, height:(tp === 'OSC' ? s.height + tR : s.height), ddgTop:null});
-  var tTop = tArch ? {one:tOne, Wt:Wt, dx:dx, R:tR} : null;
+  var tTop = tArch ? {one:tOne, Wt:Wt, dx:dx, R:tR, eShow:tE} : null;
   var cL = compute(Object.assign({}, base, {ddgLeaf:'L', ddgTop:(tTop ? Object.assign({side:'L'}, tTop) : null)})), cR = rail ? compute(Object.assign({}, base, {ddgLeaf:'R'})) : (tOne ? compute(Object.assign({}, base, {ddgLeaf:'R', ddgTop:Object.assign({side:'R'}, tTop)})) : cL);
   var warn = [], seen = {};
   cL.warn.concat((rail || tOne) ? cR.warn : []).concat(tWarn).forEach(function(w){ if(!seen[w]){ seen[w] = 1; warn.push(w); } });
@@ -1660,7 +1667,7 @@ function computePVCGate(s){
   // stays to the top of the uprights.
   var big = (s.railSize === 'large'), cRo = big ? GM.crownRoL : GM.crownRo, cRi = big ? GM.crownRiL : GM.crownRi, cMin = big ? GM.crownMinL : GM.crownMin, cMax = big ? GM.crownMaxL : GM.crownMax;      // the small rail (R50.09) or the large rail (R180.75)
   var openOnRail = (s.topper === 'OST') && (s.topRail === 'CROWN' || s.topRail === 'SCALLOP') && W >= cMin - 1e-9 && W <= cMax + 1e-9;
-  var dT = s.ddgTop || null, Hov = s.height, wantOpen = (s.topper === 'OST' || s.topper === 'OSS' || s.topper === 'OSC') && !openOnRail, isScal = (s.topper === 'OSS'), isCrnT = (s.topper === 'OSC'), showUp = isScal ? GM.scShow : (isCrnT ? (dT ? (GM.scShow - GM.scDrop) + dT.R : GM.scShow) : GM.w), gateRailPart = null, openTipMax = 0, crTopMax = 0;      // OSC: the opposite of the scallop, the first and last pickets show 4 and the ones in the middle show 10
+  var dT = s.ddgTop || null, Hov = s.height, wantOpen = (s.topper === 'OST' || s.topper === 'OSS' || s.topper === 'OSC') && !openOnRail, isScal = (s.topper === 'OSS'), isCrnT = (s.topper === 'OSC'), showUp = isScal ? (dT ? dT.eShow : GM.scShow) : (isCrnT ? (dT ? dT.eShow + dT.R : GM.scShow) : GM.w), gateRailPart = null, openTipMax = 0, crTopMax = 0;      // OSC: the opposite of the scallop, the first and last pickets show 4 and the ones in the middle show 10
   if(wantOpen) H = Hov - showUp;
   var Wc = W - 2*Gx, Hc = H - 2*Gz, xo0 = Gx, xo1 = W - Gx, zo0 = Gz, zo1 = H - Gz;
   if(!(pk.pitch > 0)) warn.push('Pick a T&G board from the board list. The PVC 7811TG is in the library.');
@@ -1920,7 +1927,8 @@ function computePVCGate(s){
       // scallop: the tips follow an arc that is 10 above the Gate Rail at the first and last picket and 6 lower in the middle
       // double drive gate: dT carries the drop (or rise) and whether the arc runs over the whole pair (one arch) or over this leaf alone
       var dR = dT ? dT.R : GM.scDrop, scHalf = ((dT && dT.one ? dT.Wt - 2*GM.spEdge : spSpan) - GM.spW)/2, scR = (dR > 0.005) ? (scHalf*scHalf + dR*dR)/(2*dR) : 1e9, scMid = (dT && dT.one) ? dT.Wt/2 : W/2, scOff = (dT && dT.one && dT.side === 'R') ? dT.dx : 0, spLo = 1e9, spHi = 0;
-      function tipOf(xc){ var xq = xc + scOff; if(dR <= 0.005 && (isScal || isCrnT)) return isScal ? H + GM.scShow : H + (GM.scShow - GM.scDrop); return isScal ? H + (GM.scShow - dR) + (scR - Math.sqrt(Math.max(0, scR*scR - (xq - scMid)*(xq - scMid)))) : (isCrnT ? H + (GM.scShow - GM.scDrop) + (Math.sqrt(Math.max(0, scR*scR - (xq - scMid)*(xq - scMid))) - Math.sqrt(Math.max(0, scR*scR - scHalf*scHalf))) : Hov); }
+      var eS = dT ? dT.eShow : (isScal ? GM.scShow : GM.scShow - GM.scDrop);      // how much the end pickets show
+      function tipOf(xc){ var xq = xc + scOff; if(dR <= 0.005 && (isScal || isCrnT)) return H + eS; return isScal ? H + (eS - dR) + (scR - Math.sqrt(Math.max(0, scR*scR - (xq - scMid)*(xq - scMid)))) : (isCrnT ? H + eS + (Math.sqrt(Math.max(0, scR*scR - (xq - scMid)*(xq - scMid))) - Math.sqrt(Math.max(0, scR*scR - scHalf*scHalf))) : Hov); }
       spInfo = {n:spN, gap:spG};
       if(isCrnT) for(si=0; si<spN; si++) crTopMax = Math.max(crTopMax, tipOf(spX0 + si*(GM.spW + spG) + GM.spW/2));      // the tallest tip, for the side view
       if(CR && isOpen) for(si=0; si<spN; si++) openTipMax = Math.max(openTipMax, CR.zO(spX0 + si*(GM.spW + spG) + GM.spW/2) + showUp);      // the tallest tip
@@ -2468,17 +2476,18 @@ function dimSvgH(xa, xb, y, label, fa, fb, st, side){
   return o.join('');
 }
 // Vertical dimension. x = dimension line, ya = top end, yb = bottom end (screen), fa/fb = x of the features. side: -1 text left, +1 text right
-function dimSvgV(x, ya, yb, label, fa, fb, st, side){
+function dimSvgV(x, ya, yb, label, fa, fb, st, side, dyL){
   var s = st.size, col = st.color, sw = n3(st.sw || s*0.06), len = s*0.8, hw = s*0.14, g = s*0.25, over = s*0.45, o = [];
   var PL = dimParts(label, s), tw = PL.width, hh = PL.halfH + 0.12*s, span = Math.abs(yb - ya), yc = (ya + yb)/2;
   var inl = span >= 2*len + 2*hh + 0.3*s, outside = span < 2*len + 0.3*s, lcx = inl ? x : x + side*(0.5*s + tw/2 + 0.25*s);
+  var ycL = (dyL > 0) ? Math.min(yc, Math.max(yc - dyL, ya + len + hh + 0.2*s)) : yc;      // dyL: raise the number along the line (never into the top arrow)
   function ln2(x1,y1,x2,y2){ o.push('<line x1="'+n3(x1)+'" y1="'+n3(y1)+'" x2="'+n3(x2)+'" y2="'+n3(y2)+'" stroke="'+col+'" stroke-width="'+sw+'"/>'); }
   var ea = x > fa ? 1 : -1, eb = x > fb ? 1 : -1;
   ln2(fa + ea*g, ya, x + ea*over, ya); ln2(fb + eb*g, yb, x + eb*over, yb);
   if(span >= 2*len + 2*hh + 0.3*s){
-    ln2(x, ya, x, yc - hh); ln2(x, yc + hh, x, yb);
+    ln2(x, ya, x, ycL - hh); ln2(x, ycL + hh, x, yb);
     o.push(arrowSvg(x, ya, 0, -1, len, hw, col), arrowSvg(x, yb, 0, 1, len, hw, col));
-    o.push(dimLabelSvg(x, yc, label, s, col));
+    o.push(dimLabelSvg(x, ycL, label, s, col));
   } else {
     var inside = span >= 2*len + 0.3*s;
     if(inside){ ln2(x, ya, x, yb); o.push(arrowSvg(x, ya, 0, -1, len, hw, col), arrowSvg(x, yb, 0, 1, len, hw, col)); }
@@ -2487,7 +2496,7 @@ function dimSvgV(x, ya, yb, label, fa, fb, st, side){
   }
   if(st.obs){
     var ob = st.obs;
-    ob.push({x0:lcx - tw/2 - 1, x1:lcx + tw/2 + 1, y0:yc - PL.halfH, y1:yc + PL.halfH, major:true});
+    ob.push({x0:lcx - tw/2 - 1, x1:lcx + tw/2 + 1, y0:(inl ? ycL : yc) - PL.halfH, y1:(inl ? ycL : yc) + PL.halfH, major:true});
     ob.push({x0:x - 1, x1:x + 1, y0:Math.min(ya,yb) - (outside ? len : 0), y1:Math.max(ya,yb) + (outside ? len : 0), major:false});
     ob.push({x0:Math.min(fa + ea*g, x + ea*over), x1:Math.max(fa + ea*g, x + ea*over), y0:ya - 0.6, y1:ya + 0.6, major:false});
     ob.push({x0:Math.min(fb + eb*g, x + eb*over), x1:Math.max(fb + eb*g, x + eb*over), y0:yb - 0.6, y1:yb + 0.6, major:false});
@@ -2596,6 +2605,10 @@ function drawing(c){
       dims[1] = {k:'v', x:xl, za:0, zb:c.ddg.hEnd, fa:0, fb:0, label:fmt(c.ddg.hEnd), side:-1};
       dims.push({k:'v', x:xl - fs*3.5, za:0, zb:H, fa:0, fb:c.ddg.tallX, label:fmt(H), side:-1});
     }
+    if(c.ddg && c.topper && (c.topper === 'OST' || c.topper === 'OSS' || c.topper === 'OSC')){      // double drive gate, open spindle topper: the height of the frame (bottom of the gate to the top of the Gate Rail), nearest the gate, with the overall heights outside it
+      dims.forEach(function(m){ if(m.k === 'v' && m.side === -1 && m.x <= xl + 1e-9){ m.x -= fs*3; m.nudge = 5; m.labZ = c.top.hf + fs; } });      // the overall heights: the number sits a text height above the top of the frame dimension      // the stack sits closer to the gate (the frame dimension 1 1/2 text heights in, the overall 1/2 in) so it stays off the edge of the view to the gate so it stays off the edge of the view
+      dims.push({k:'v', x:xl + fs*1.5, za:0, zb:c.top.hf, fa:0, fb:0, label:fmt(c.top.hf), side:-1, nudge:5});      // nudge: sheet units (about 5 screen pixels) to the right, drawn on the sheet only
+    }
     if(c.crown && c.ddg && c.ddg.D > 0.01){      // double drive gate: the height of the tall upright (the low end plus the rise), next to the height on the left
       if(c.ddg.scal){ dims[1] = {k:'v', x:xl, za:0, zb:H, fa:0, fb:c.ddg.Wl - c.ddg.upW, label:fmt(H), side:-1}; dims.push({k:'v', x:xl - fs*3.5, za:0, zb:H + c.ddg.D, fa:0, fb:0, label:fmt(H + c.ddg.D), side:-1}); }
       else dims.push({k:'v', x:xl - fs*3.5, za:0, zb:H + c.ddg.D, fa:0, fb:c.ddg.Wl - c.ddg.upW, label:fmt(H + c.ddg.D), side:-1});
@@ -2619,7 +2632,7 @@ function drawing(c){
   });
   notes.forEach(function(t){ texts.push({x:t.x, z:t.z, s:t.s, size:fs, anchor:'middle', rot:0}); });
 
-  var view = {x0:-fs*((c.ddg && (c.ddg.D > 0.01 || c.ddg.tRise > 0.01)) ? 12 : 8.5), x1:W+fs*(c.ddg ? 8.5 : ((c.topper && c.crown) ? 14 : ((c.topper || c.crown || c.wtop) ? 10.5 : 8.5))), z0:-fs*9, z1:(c.Hs || H)+fs*9};
+  var view = {x0:-fs*((c.ddg && c.ddg.tRise > 0.01 && (c.topper === 'OSC')) ? 15.5 : ((c.ddg && (c.ddg.D > 0.01 || c.ddg.tRise > 0.01 || (c.topper === 'OST' || c.topper === 'OSS'))) ? 12 : 8.5)), x1:W+fs*(c.ddg ? 8.5 : ((c.topper && c.crown) ? 14 : ((c.topper || c.crown || c.wtop) ? 10.5 : 8.5))), z0:-fs*9, z1:(c.Hs || H)+fs*9};
   return {polys:polys, dims:dims, notes:notes, lines:lines, texts:texts, view:view, fs:fs};
 }
 
@@ -3680,7 +3693,7 @@ function sheetSvg(c, info){
   if(dimsOn){
     d.dims.forEach(function(m){
       if(m.k === 'h') o.push(dimH(FM.X(m.xa), FM.X(m.xb), FM.Y(m.z), m.label, FM.Y(m.fa), FM.Y(m.fb), stF, m.side));
-      else o.push(dimV(FM.X(m.x), FM.Y(m.zb), FM.Y(m.za), m.label, FM.X(m.fa), FM.X(m.fb), stF, m.side));
+      else o.push(dimV(FM.X(m.x) + (m.nudge || 0), FM.Y(m.zb), FM.Y(m.za), m.label, FM.X(m.fa), FM.X(m.fb), stF, m.side, (m.labZ !== undefined ? FM.Y((m.za + m.zb)/2) - FM.Y(m.labZ) : 0)));
     });
     d.notes.forEach(function(t){
       o.push(richTextSvg(FM.X(t.x), FM.Y(t.z), t.s, 9.5, DTXT, 'middle', true));
@@ -4027,7 +4040,8 @@ if(typeof document !== 'undefined'){
     {key:'ilShow', label:'Pickets show', hint:'Top of the top Gate Rail up to the tip of the cap', min:3, max:60},
     {key:'ilHighH', label:'High rail height', hint:'From the bottom of the top rail (the lowest point of its underside) to the top of the high rail. Usually 11 1/2.', min:0, max:60},
     {key:'topperH', label:'Topper height', hint:'Top of the gate down to the top of the 2x6 high-rail', min:6, max:60},
-    {key:'ddgTR', label:'Rise', hint:'', min:0, max:60},
+    {key:'ddgShE', label:'Ends show', hint:'', min:2, max:60},
+    {key:'ddgShM', label:'Middle shows', hint:'', min:2, max:60},
     {key:'ddgRise', label:'Rise', hint:'How much taller the center upright is than the outside one. The overall height is the low outside end of each leaf.', min:0, max:60},
     {key:'latSp', label:'Lattice spacing', hint:'The opening between strips, across and up and down. The closest whole number of strips is used.', min:0.5, max:12}
   ];
@@ -4062,6 +4076,7 @@ if(typeof document !== 'undefined'){
         if(state.topRail === 'SSWEPT') state.ddgRise = parseInt(state.sRad, 10);
         else if(state.topRail === 'CROWN' || state.topRail === 'SCALLOP'){ var dnat = ddgNatural(state); if(dnat !== null) state.ddgRise = Math.round(dnat*16)/16; }
       }
+      if(state.ddg === 'on' && (g.key === 'topper' || g.key === 'ddg') && (state.topper === 'OSS' || state.topper === 'OSC')){ state.ddgShE = (state.topper === 'OSS') ? 10 : 4; state.ddgShM = (state.topper === 'OSS') ? 4 : 10; }      // the standard show amounts for the crown and the scallop
       if(g.key === 'sides' || g.key === 'dstyle') state.count = null;
       if(g.key === 'material' || g.key === 'sides' || g.key === 'dstyle') renderPickets();
       update();
@@ -4587,9 +4602,9 @@ if(typeof document !== 'undefined'){
     else inputs.ddgRise.parentNode.querySelector('.hint').textContent = 'How much taller the center upright is than the outside one. The overall height is the low outside end of each leaf.';
     // double drive gate toppers: the Oklahoma gate, Gate Master frame, no top rail. The open spindle crown and scallop have a Rise / Drop field.
     var ddgTop = ddgNow && pvcG && !njgOn() && state.topRail === 'none' && state.pframe !== 'pocket', ddgArch = ddgTop && (state.topper === 'OSS' || state.topper === 'OSC');
-    inputs.ddgTR.parentNode.style.display = ddgArch ? '' : 'none';
-    inputs.ddgTR.parentNode.querySelector('.lbl').textContent = state.topper === 'OSS' ? 'Drop' : 'Rise';
-    inputs.ddgTR.parentNode.querySelector('.hint').textContent = state.topper === 'OSS' ? 'How far the tips dip at the middle below the tips of the first and last pickets. 6 is the standard.' : 'How much taller the tallest pickets are than the first and last ones. The Overall height is the first and last picket tips and the rise goes on top. 6 is the standard.';
+    inputs.ddgShE.parentNode.style.display = inputs.ddgShM.parentNode.style.display = ddgArch ? '' : 'none';
+    inputs.ddgShM.parentNode.querySelector('.lbl').textContent = state.topper === 'OSS' ? 'Middle pickets show' : 'Tallest pickets show'; inputs.ddgShE.parentNode.querySelector('.lbl').textContent = 'End pickets show';
+    inputs.ddgShE.parentNode.querySelector('.hint').textContent = 'How much the first and last pickets and caps show above the Gate Rail. The Overall height is to these tips' + (state.topper === 'OSS' ? '.' : ', and the crown rises above it.') + ' ' + (state.topper === 'OSS' ? '10' : '4') + ' is the standard.'; inputs.ddgShM.parentNode.querySelector('.hint').textContent = (state.topper === 'OSS' ? 'How much the pickets at the middle of the dip show above the Gate Rail. The drop is the end amount minus this.' : 'How much the tallest pickets show above the Gate Rail. The rise is this minus the end amount.') + ' ' + (state.topper === 'OSS' ? '4' : '10') + ' is the standard.';
     var woodG = woodGateTgOn(), woodTop = woodG && state.wTopper !== 'none';
     inputs.ilShow.parentNode.style.display = ilgOn() ? '' : 'none';
     inputs.ilHighH.parentNode.style.display = (ilgOn() && state.ilHigh === 'on') ? '' : 'none';
