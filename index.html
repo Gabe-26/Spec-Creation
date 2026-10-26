@@ -1418,6 +1418,19 @@ function computeDDG(s){
   // the four uprights, left to right: the outside of the left leaf, the center of the left leaf, the center of the right leaf, the outside of the right leaf
   var upW = cL.pocket ? cL.pocket.post : GM.w, hs = swL ? [swL.HuL, swL.HuR, cR.sw.HuL, cR.sw.HuR] : [cL.H, cL.H, cL.H, cL.H], xsU = [0, Wl - upW, dx, Wt - upW];
   c.ddg = {tRise:(tp === 'OSC' ? tR : 0), hEnd:s.height, tallX:(tOne ? Wl - GM.spEdge - GM.spW/2 : Wl/2), scal:!!(cL.crown && cL.crown.name === 'scallop'), upW:upW, gap:gap, Wl:Wl, dx:dx, D:D, rail:rail, Htop:Htop, hs:hs, capPts:xsU.map(function(x, i){ return [x + upW/2, hs[i] + capUpH + GM.capUp/2]; })};
+  // open spindle scallop: the pickets at the middle of the dip (the lowest tips). One dimension at the center of the pair on one arch, or one at the middle of each leaf. It runs from the top of the Gate Rail to those tips.
+  c.ddg.mid = null;
+  if(tp === 'OSS'){
+    var cpk = parts.filter(function(p){ return p.kind === 'spcap'; }).map(function(p){ return {x:p.pts[2][0], z:p.pts[2][1]}; }).sort(function(a, b){ return a.x - b.x; });
+    var mgrp = tOne ? [cpk] : [cpk.filter(function(q){ return q.x < Wl; }), cpk.filter(function(q){ return q.x > Wl; })];
+    c.ddg.mid = [];
+    mgrp.forEach(function(gp){
+      if(gp.length < 2) return;
+      var k = 0, zmin = 1e9; gp.forEach(function(q, i){ if(q.z < zmin - 1e-6){ zmin = q.z; k = i; } });
+      var ma = (k + 1 < gp.length) ? gp[k] : gp[k - 1], mb = (k + 1 < gp.length) ? gp[k + 1] : gp[k];
+      c.ddg.mid.push({x:(ma.x + mb.x)/2, xa:ma.x, xb:mb.x, zTip:zmin, zBase:cL.top.hf, label:tM});
+    });
+  }
   if(cL.crown){
     var zOL = cL.crown.zO, zIL = cL.crown.zI, zOR = cR.crown.zO, zIR = cR.crown.zI;
     c.crown = {peak:Htop, name:cL.crown.name, big:!!cL.crown.big, zO:function(x){ return x <= Wl + gap/2 ? zOL(x) : zOR(x - dx); }, zI:function(x){ return x <= Wl + gap/2 ? zIL(x) : zIR(x - dx); }};
@@ -3751,6 +3764,19 @@ function sheetSvg(c, info){
     });
     else o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(c.z1), BM.Y(c.z0), fmt(c.frameH), bx1, bx1, stB, 1));
   }
+  if(dimsOn && c.ddg && c.ddg.mid) c.ddg.mid.forEach(function(m){      // the mid pickets of the scallop: how much they show above the Gate Rail, with the number above the tips
+    var mx = BM.X(c.W - m.x), yT = BM.Y(m.zTip), yB = BM.Y(m.zBase), s = stB.size, col = stB.color, sw = n3(stB.sw || s*0.06), len = s*0.8, hw = s*0.14, lab = fmt(m.label), g = '', ex0 = BM.X(c.W - m.xa), ex1 = BM.X(c.W - m.xb);
+    function mln(x1, y1, x2, y2){ return '<line x1="' + n3(x1) + '" y1="' + n3(y1) + '" x2="' + n3(x2) + '" y2="' + n3(y2) + '" stroke="' + col + '" stroke-width="' + sw + '"/>'; }
+    var inside = Math.abs(yB - yT) >= 2*len + 0.3*s, PLm = dimParts(shownLabel('v', lab), s), xl2 = Math.min(ex0, ex1) + s*0.25, xr2 = Math.max(ex0, ex1) - s*0.25;
+    g += mln(xl2, yT, xr2, yT) + mln(xl2, yB, xr2, yB);      // extension lines at the tips and at the top of the Gate Rail
+    if(inside){ g += mln(mx, yT, mx, yB) + arrowSvg(mx, yT, 0, -1, len, hw, col) + arrowSvg(mx, yB, 0, 1, len, hw, col); }
+    else { g += mln(mx, yT - len, mx, yB + len) + arrowSvg(mx, yT, 0, 1, len, hw, col) + arrowSvg(mx, yB, 0, -1, len, hw, col); }
+    var lcy = yT - (inside ? 0 : len) - PLm.halfH - 0.3*s;
+    g += dimLabelSvg(mx, lcy, shownLabel('v', lab), s, col);
+    o.push(dimWrap('v', lab, g));
+    stB.obs.push({x0:mx - PLm.width/2 - 1, x1:mx + PLm.width/2 + 1, y0:lcy - PLm.halfH, y1:lcy + PLm.halfH, major:true});
+    stB.obs.push({x0:mx - 1, x1:mx + 1, y0:yT - (inside ? 0 : len), y1:yB + (inside ? 0 : len), major:false});
+  });
   var ctxB = {obs:stB.obs, gate:{x0:bx0, x1:bx1, y0:BM.Y(c.Hs || c.H), y1:BM.Y(0)}, cell:{x0:10, x1:SX - 5, y0:bY.y0 + 2, y1:bY.y1 - 2}, placed:[]};
   if(c.mode !== 'tg' && topRail){
     var zs = topRail.pts.map(function(p){ return p[1]; }), zm = (Math.min.apply(null,zs) + Math.max.apply(null,zs))/2;
