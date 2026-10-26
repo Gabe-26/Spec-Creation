@@ -320,7 +320,7 @@ function dowelPart(name, kind, y0, y1, xa, xb, zb, zt){
 var DEFAULTS = {
   material:'wood', kind:'gate', frame:'2x4', style:'lib_seed-gothic4',
   height:56, width:34, gap:2, top:6, bottom:7,
-  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
+  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', latSp:2, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', ddgTLay:'one', ddgTR:6, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
   so:'', drawn:'', notes:'', copy:'customer', sheetDims:true, view:'work'
 };
 
@@ -1379,6 +1379,8 @@ function ddgShift(p, dx, so){
   if(p.x1 !== undefined && typeof p.x1 === 'number') q.x1 = p.x1 + dx;
   if(p.isoBodies) q.isoBodies = p.isoBodies.map(function(ib){ var r = Object.assign({}, ib); r.x0 = ib.x0 + dx; r.x1 = ib.x1 + dx; r.so = (ib.so || 0) + so; return r; });
   if(p.zTop) q.zTop = function(x){ return p.zTop(x - dx); };
+  if(p.lat){ var lt = Object.assign({}, p.lat); lt.x0 = p.lat.x0 + dx; lt.x1 = p.lat.x1 + dx; if(typeof p.lat.cx === 'number') lt.cx = p.lat.cx + dx; if(p.lat.topFn) lt.topFn = function(x){ return p.lat.topFn(x - dx); }; q.lat = lt; }      // the wood-or-PVC lattice topper: its outline and pattern follow the leaf
+  if(p.exportFn) q.exportFn = function(){ return p.exportFn().map(function(b){ var r = Object.assign({}, b); r.pts = sp(b.pts); if(b.holes) r.holes = b.holes.map(sp); return r; }); };
   if(p.layer === 'PICKET'){
     q.isoSo = (p.isoSo || 0) + so;
     if(p.isoSegs) q.isoSegs = p.isoSegs.map(function(sg){ return {z:sg.z, so:(sg.so || 0) + so}; });
@@ -1387,10 +1389,16 @@ function ddgShift(p, dx, so){
 }
 function computeDDG(s){
   var gap = GM.ddgGap, Wl = s.width, crSel = (s.topRail === 'CROWN' || s.topRail === 'SCALLOP'), rail = (s.topRail === 'SSWEPT') || (crSel && s.ddgLay !== 'each'), rise = rail ? Math.max(0, +s.ddgRise || 0) : 0, dx = Wl + gap, Wt = 2*Wl + gap, so = 50;
-  var base = Object.assign({}, s, {width:Wl, ddg:'off', topper:'none', topRail:((rail || crSel) ? s.topRail : 'none'), ddgRise:rise});
-  var cL = compute(Object.assign({}, base, {ddgLeaf:'L'})), cR = rail ? compute(Object.assign({}, base, {ddgLeaf:'R'})) : cL;
+  // Toppers (Oklahoma gate, Gate Master frame, no top rail): each leaf gets the same topper. The open spindle crown and scallop come two ways: one arch over the pair (the tips follow one curve across both
+  // leaves) or a crown / scallop on each leaf. On the crown the Overall height is the tips of the first and last pickets and the rise goes on top of it; on the scallop it is the tips of the end pickets and the drop goes below.
+  var tpOK = (!s.topRail || s.topRail === 'none') && s.dstyle === 'tg' && s.pframe !== 'pocket' && s.topper && s.topper !== 'none', tp = tpOK ? s.topper : 'none';
+  var tArch = (tp === 'OSS' || tp === 'OSC'), tOne = tArch && s.ddgTLay !== 'each', tR = tArch ? (+s.ddgTR >= 0 ? +s.ddgTR : GM.scDrop) : 0, tWarn = [];
+  if(tp === 'OSS' && tR > GM.scShow - 2){ tR = GM.scShow - 2; tWarn.push('The scallop can drop at most ' + fmt(tR) + ' here, so the center pickets still show above the Gate Rail. It is drawn at ' + fmt(tR) + '.'); }
+  var base = Object.assign({}, s, {width:Wl, ddg:'off', topper:tp, topRail:((rail || crSel) ? s.topRail : 'none'), ddgRise:rise, height:(tp === 'OSC' ? s.height + tR : s.height), ddgTop:null});
+  var tTop = tArch ? {one:tOne, Wt:Wt, dx:dx, R:tR} : null;
+  var cL = compute(Object.assign({}, base, {ddgLeaf:'L', ddgTop:(tTop ? Object.assign({side:'L'}, tTop) : null)})), cR = rail ? compute(Object.assign({}, base, {ddgLeaf:'R'})) : (tOne ? compute(Object.assign({}, base, {ddgLeaf:'R', ddgTop:Object.assign({side:'R'}, tTop)})) : cL);
   var warn = [], seen = {};
-  cL.warn.concat(rail ? cR.warn : []).forEach(function(w){ if(!seen[w]){ seen[w] = 1; warn.push(w); } });
+  cL.warn.concat((rail || tOne) ? cR.warn : []).concat(tWarn).forEach(function(w){ if(!seen[w]){ seen[w] = 1; warn.push(w); } });
   if(Wl < 8) warn.push('The gate is too narrow for two leaves.');
   var swL = cL.sw, D = swL ? swL.D : 0;
   var parts = cL.parts.concat(cR.parts.map(function(p){ return ddgShift(p, dx, so); }));
@@ -1402,7 +1410,7 @@ function computeDDG(s){
   var capH = cL.pocket ? cL.pocket.post : GM.w, capUpH = cL.pocket ? 1 : 0;
   // the four uprights, left to right: the outside of the left leaf, the center of the left leaf, the center of the right leaf, the outside of the right leaf
   var upW = cL.pocket ? cL.pocket.post : GM.w, hs = swL ? [swL.HuL, swL.HuR, cR.sw.HuL, cR.sw.HuR] : [cL.H, cL.H, cL.H, cL.H], xsU = [0, Wl - upW, dx, Wt - upW];
-  c.ddg = {scal:!!(cL.crown && cL.crown.name === 'scallop'), upW:upW, gap:gap, Wl:Wl, dx:dx, D:D, rail:rail, Htop:Htop, hs:hs, capPts:xsU.map(function(x, i){ return [x + upW/2, hs[i] + capUpH + GM.capUp/2]; })};
+  c.ddg = {tRise:(tp === 'OSC' ? tR : 0), hEnd:s.height, tallX:(tOne ? Wl - GM.spEdge - GM.spW/2 : Wl/2), scal:!!(cL.crown && cL.crown.name === 'scallop'), upW:upW, gap:gap, Wl:Wl, dx:dx, D:D, rail:rail, Htop:Htop, hs:hs, capPts:xsU.map(function(x, i){ return [x + upW/2, hs[i] + capUpH + GM.capUp/2]; })};
   if(cL.crown){
     var zOL = cL.crown.zO, zIL = cL.crown.zI, zOR = cR.crown.zO, zIR = cR.crown.zI;
     c.crown = {peak:Htop, name:cL.crown.name, big:!!cL.crown.big, zO:function(x){ return x <= Wl + gap/2 ? zOL(x) : zOR(x - dx); }, zI:function(x){ return x <= Wl + gap/2 ? zIL(x) : zIR(x - dx); }};
@@ -1652,7 +1660,7 @@ function computePVCGate(s){
   // stays to the top of the uprights.
   var big = (s.railSize === 'large'), cRo = big ? GM.crownRoL : GM.crownRo, cRi = big ? GM.crownRiL : GM.crownRi, cMin = big ? GM.crownMinL : GM.crownMin, cMax = big ? GM.crownMaxL : GM.crownMax;      // the small rail (R50.09) or the large rail (R180.75)
   var openOnRail = (s.topper === 'OST') && (s.topRail === 'CROWN' || s.topRail === 'SCALLOP') && W >= cMin - 1e-9 && W <= cMax + 1e-9;
-  var Hov = s.height, wantOpen = (s.topper === 'OST' || s.topper === 'OSS' || s.topper === 'OSC') && !openOnRail, isScal = (s.topper === 'OSS'), isCrnT = (s.topper === 'OSC'), showUp = (isScal || isCrnT) ? GM.scShow : GM.w, gateRailPart = null, openTipMax = 0, crTopMax = 0;      // OSC: the opposite of the scallop, the first and last pickets show 4 and the ones in the middle show 10
+  var dT = s.ddgTop || null, Hov = s.height, wantOpen = (s.topper === 'OST' || s.topper === 'OSS' || s.topper === 'OSC') && !openOnRail, isScal = (s.topper === 'OSS'), isCrnT = (s.topper === 'OSC'), showUp = isScal ? GM.scShow : (isCrnT ? (dT ? (GM.scShow - GM.scDrop) + dT.R : GM.scShow) : GM.w), gateRailPart = null, openTipMax = 0, crTopMax = 0;      // OSC: the opposite of the scallop, the first and last pickets show 4 and the ones in the middle show 10
   if(wantOpen) H = Hov - showUp;
   var Wc = W - 2*Gx, Hc = H - 2*Gz, xo0 = Gx, xo1 = W - Gx, zo0 = Gz, zo1 = H - Gz;
   if(!(pk.pitch > 0)) warn.push('Pick a T&G board from the board list. The PVC 7811TG is in the library.');
@@ -1910,8 +1918,9 @@ function computePVCGate(s){
       for(nn=2; nn<=400; nn++){ var gq = (spSpan - GM.spW*nn)/(nn - 1); if(gq < 0) break; var dq = Math.abs(gq - GM.spGap); if(dq < spBest){ spBest = dq; spN = nn; } }
       var spG = (spSpan - GM.spW*spN)/(spN - 1), spZ0 = zrt - GM.railCh, spZ1 = isOpen ? Hov - 1 : zo1 + GM.spIn, si;      // open: the picket runs through the Gate Rail and ends under a 1 tall cap
       // scallop: the tips follow an arc that is 10 above the Gate Rail at the first and last picket and 6 lower in the middle
-      var scHalf = (spSpan - GM.spW)/2, scR = (scHalf*scHalf + GM.scDrop*GM.scDrop)/(2*GM.scDrop), scMid = W/2, spLo = 1e9, spHi = 0;
-      function tipOf(xc){ return isScal ? H + (GM.scShow - GM.scDrop) + (scR - Math.sqrt(Math.max(0, scR*scR - (xc - scMid)*(xc - scMid)))) : (isCrnT ? H + (GM.scShow - GM.scDrop) + (Math.sqrt(Math.max(0, scR*scR - (xc - scMid)*(xc - scMid))) - Math.sqrt(Math.max(0, scR*scR - scHalf*scHalf))) : Hov); }
+      // double drive gate: dT carries the drop (or rise) and whether the arc runs over the whole pair (one arch) or over this leaf alone
+      var dR = dT ? dT.R : GM.scDrop, scHalf = ((dT && dT.one ? dT.Wt - 2*GM.spEdge : spSpan) - GM.spW)/2, scR = (dR > 0.005) ? (scHalf*scHalf + dR*dR)/(2*dR) : 1e9, scMid = (dT && dT.one) ? dT.Wt/2 : W/2, scOff = (dT && dT.one && dT.side === 'R') ? dT.dx : 0, spLo = 1e9, spHi = 0;
+      function tipOf(xc){ var xq = xc + scOff; if(dR <= 0.005 && (isScal || isCrnT)) return isScal ? H + GM.scShow : H + (GM.scShow - GM.scDrop); return isScal ? H + (GM.scShow - dR) + (scR - Math.sqrt(Math.max(0, scR*scR - (xq - scMid)*(xq - scMid)))) : (isCrnT ? H + (GM.scShow - GM.scDrop) + (Math.sqrt(Math.max(0, scR*scR - (xq - scMid)*(xq - scMid))) - Math.sqrt(Math.max(0, scR*scR - scHalf*scHalf))) : Hov); }
       spInfo = {n:spN, gap:spG};
       if(isCrnT) for(si=0; si<spN; si++) crTopMax = Math.max(crTopMax, tipOf(spX0 + si*(GM.spW + spG) + GM.spW/2));      // the tallest tip, for the side view
       if(CR && isOpen) for(si=0; si<spN; si++) openTipMax = Math.max(openTipMax, CR.zO(spX0 + si*(GM.spW + spG) + GM.spW/2) + showUp);      // the tallest tip
@@ -2583,6 +2592,10 @@ function drawing(c){
     if(c.ilg && c.ilg.hr) dims.push({k:'v', x:xr + (c.crown ? fs*3.5 : 0), za:c.ilg.hr.zrt, zb:c.ilg.hr.zU, fa:W, fb:W, label:fmt(c.ilg.hr.hh), side:1});      // the high rail: from the bottom of the top rail to the top of the high rail
     if(c.ilg) dims.push({k:'v', x:xr + (c.crown ? fs*3.5 : 0), za:c.ilg.showZ0, zb:c.ilg.showZ1, fa:c.ilg.showX, fb:W, label:fmt(c.ilg.show), side:1});      // how much of the picket and cap shows above the top rail
     if(c.topper) dims.push({k:'v', x:xr + (c.crown ? fs*3.5 : 0), za:c.top.zrt, zb:(c.top.tipEnd || H), fa:(c.top.tipEnd ? c.top.tipX : W), fb:W, label:fmt(c.top.T), side:1});
+    if(c.ddg && c.ddg.tRise > 0.01){      // double drive gate with the open spindle crown topper: the Overall height is the tips of the first and last pickets; the tallest tip (height plus the rise) is next to it
+      dims[1] = {k:'v', x:xl, za:0, zb:c.ddg.hEnd, fa:0, fb:0, label:fmt(c.ddg.hEnd), side:-1};
+      dims.push({k:'v', x:xl - fs*3.5, za:0, zb:H, fa:0, fb:c.ddg.tallX, label:fmt(H), side:-1});
+    }
     if(c.crown && c.ddg && c.ddg.D > 0.01){      // double drive gate: the height of the tall upright (the low end plus the rise), next to the height on the left
       if(c.ddg.scal){ dims[1] = {k:'v', x:xl, za:0, zb:H, fa:0, fb:c.ddg.Wl - c.ddg.upW, label:fmt(H), side:-1}; dims.push({k:'v', x:xl - fs*3.5, za:0, zb:H + c.ddg.D, fa:0, fb:0, label:fmt(H + c.ddg.D), side:-1}); }
       else dims.push({k:'v', x:xl - fs*3.5, za:0, zb:H + c.ddg.D, fa:0, fb:c.ddg.Wl - c.ddg.upW, label:fmt(H + c.ddg.D), side:-1});
@@ -2606,7 +2619,7 @@ function drawing(c){
   });
   notes.forEach(function(t){ texts.push({x:t.x, z:t.z, s:t.s, size:fs, anchor:'middle', rot:0}); });
 
-  var view = {x0:-fs*((c.ddg && c.ddg.D > 0.01) ? 12 : 8.5), x1:W+fs*(c.ddg ? 8.5 : ((c.topper && c.crown) ? 14 : ((c.topper || c.crown || c.wtop) ? 10.5 : 8.5))), z0:-fs*9, z1:(c.Hs || H)+fs*9};
+  var view = {x0:-fs*((c.ddg && (c.ddg.D > 0.01 || c.ddg.tRise > 0.01)) ? 12 : 8.5), x1:W+fs*(c.ddg ? 8.5 : ((c.topper && c.crown) ? 14 : ((c.topper || c.crown || c.wtop) ? 10.5 : 8.5))), z0:-fs*9, z1:(c.Hs || H)+fs*9};
   return {polys:polys, dims:dims, notes:notes, lines:lines, texts:texts, view:view, fs:fs};
 }
 
@@ -3584,10 +3597,12 @@ function sheetSvg(c, info){
     if(c.pocket){ addG('cap', fmt(c.pocket.post), 'TRADITIONAL CAP', 'front', (c.ddg ? c.ddg.capPts : [[c.pocket.post/2, c.pocket.top + GM.capUp/2],[gW - c.pocket.post/2, c.pocket.top + GM.capUp/2]]), 270); tgRows[tgRows.length-1].alsoBack = true; }
     else if(c.crown){ addG('cap', fmt(GM.w), 'TRADITIONAL CAP', 'front', (c.ddg ? c.ddg.capPts : [[GM.w/2, gH + GM.capUp/2],[gW - GM.w/2, gH + GM.capUp/2]]), 270); tgRows[tgRows.length-1].alsoBack = true; }
     if(c.topper){
-      addG('rail', fmt(GM.railT)+' X '+fmt(GM.railH), 'HIGH RAIL', 'front', [[gW*0.22, c.top.zrb + 3],[gW*0.5, c.top.zrb + 3],[gW*0.78, c.top.zrb + 3]], 180);
+      var tdx = c.ddg ? [c.ddg.Wl*0.3, c.ddg.Wl*0.7, c.ddg.dx + c.ddg.Wl*0.3, c.ddg.dx + c.ddg.Wl*0.7] : null;      // double drive gate: the callouts point into the leaves, not the gap between them
+      var tdp = function(fr, z){ return (tdx || fr.map(function(f){ return gW*f; })).map(function(x){ return [x, z]; }); };
+      addG('rail', fmt(GM.railT)+' X '+fmt(GM.railH), 'HIGH RAIL', 'front', tdp([0.22, 0.5, 0.78], c.top.zrb + 3), 180);
       if(c.topper === 'OEN') addG('lattice', '', 'OLD ENGLISH TOPPER', 'front', [0.3, 0.5, 0.7].map(function(f){ var k = Math.min(c.oe.nUp - 1, Math.max(0, Math.round((c.oe.nUp - 1)*f))); return [c.oe.xs[k], (c.top.zrt + c.top.zo1)/2]; }), 45);
-      else if(c.topper === 'CST' || c.topper === 'OST' || c.topper === 'OSS' || c.topper === 'OSC') addG('spindle', '', ({OST:'OPEN SPINDLE TOPPER', OSS:'OPEN SPINDLE SCALLOP TOPPER', OSC:'OPEN SPINDLE CROWN TOPPER', CST:'CLOSED SPINDLE TOPPER'}[c.topper]), 'front', [[gW*0.35, (c.top.zrt + c.top.zo1)/2],[gW*0.5, (c.top.zrt + c.top.zo1)/2],[gW*0.65, (c.top.zrt + c.top.zo1)/2]], 45);
-      else addG('lattice', '', ({MDL:'MINI DIAGONAL LATTICE', DDL:'DELUXE DIAGONAL LATTICE', MSL:'MINI SQUARE LATTICE', DSL:'DELUXE SQUARE LATTICE'}[c.topper]), 'front', [[gW*0.35, (c.top.zrt + (c.crown || c.pocket ? c.top.zo1 : gH - GM.w))/2],[gW*0.5, (c.top.zrt + (c.crown || c.pocket ? c.top.zo1 : gH - GM.w))/2],[gW*0.65, (c.top.zrt + (c.crown || c.pocket ? c.top.zo1 : gH - GM.w))/2]], 45);
+      else if(c.topper === 'CST' || c.topper === 'OST' || c.topper === 'OSS' || c.topper === 'OSC') addG('spindle', '', ({OST:'OPEN SPINDLE TOPPER', OSS:'OPEN SPINDLE SCALLOP TOPPER', OSC:'OPEN SPINDLE CROWN TOPPER', CST:'CLOSED SPINDLE TOPPER'}[c.topper]), 'front', tdp([0.35, 0.5, 0.65], (c.top.zrt + c.top.zo1)/2), 45);
+      else addG('lattice', '', ({MDL:'MINI DIAGONAL LATTICE', DDL:'DELUXE DIAGONAL LATTICE', MSL:'MINI SQUARE LATTICE', DSL:'DELUXE SQUARE LATTICE'}[c.topper]), 'front', tdp([0.35, 0.5, 0.65], (c.top.zrt + (c.crown || c.pocket ? c.top.zo1 : gH - GM.w))/2), 45);
     }
   } else if(c.mode === 'tg' && c.pvc){
     var pH = c.H, pW = c.W, pMid = c.z0 + (c.z1 - c.z0)/2;
@@ -3984,7 +3999,8 @@ if(typeof document !== 'undefined'){
     {key:'pframe', label:'Frame', choices:[['gm','Gate Master frame'],['pocket','Pocket frame']], when:function(){ return pvcGateOn() && !njgOn(); }},
     {key:'ppost', label:'Post size', choices:[['5','5x5 post'],['4','4x4 post']], when:function(){ return pvcGateOn() && !njgOn() && state.pframe === 'pocket'; }},
     {key:'ddg', label:'Double drive gate', choices:[['off','Off'],['on','On']], when:function(){ return pvcGateOn() || ilgOn(); }},
-    {key:'topper', label:'Topper', choices:[['none','None'],['MDL','Mini diagonal lattice (MDL)'],['DDL','Deluxe diagonal lattice (DDL)'],['MSL','Mini square lattice (MSL)'],['DSL','Deluxe square lattice (DSL)'],['CST','Closed spindle topper'],['OST','Open spindle topper'],['OSS','Open spindle scallop topper'],['OSC','Open spindle crown topper'],['OEN','Old English topper']], when:function(){ return pvcGateOn() && state.ddg !== 'on'; }},
+    {key:'topper', label:'Topper', choices:[['none','None'],['MDL','Mini diagonal lattice (MDL)'],['DDL','Deluxe diagonal lattice (DDL)'],['MSL','Mini square lattice (MSL)'],['DSL','Deluxe square lattice (DSL)'],['CST','Closed spindle topper'],['OST','Open spindle topper'],['OSS','Open spindle scallop topper'],['OSC','Open spindle crown topper'],['OEN','Old English topper']], when:function(){ return pvcGateOn() && (state.ddg !== 'on' || (!njgOn() && state.topRail === 'none' && state.pframe !== 'pocket')); }},
+    {key:'ddgTLay', label:'Topper on a double drive gate', choices:[['one','One arch over the pair'],['each','A topper on each leaf']], when:function(){ return pvcGateOn() && !njgOn() && state.ddg === 'on' && state.topRail === 'none' && state.pframe !== 'pocket' && (state.topper === 'OSS' || state.topper === 'OSC'); }},
     {key:'wTopper', label:'Topper', choices:[['none','None'],['SQL','Square lattice topper'],['DGL','Diagonal lattice topper']], when:function(){ return woodGateTgOn(); }},
     {key:'topRail', label:'Top rail', choices:[['none','None'],['CROWN','Crown rail'],['SCALLOP','Scallop rail'],['SSWEPT','S-swept']], when:function(){ return pvcGateOn() || ilgOn(); }},
     {key:'railSize', label:'Rail size', choices:[['small','Small rail (R50.09)'],['large','Large rail (R180.75)']], when:function(){ return (pvcGateOn() || ilgOn()) && (state.topRail === 'CROWN' || state.topRail === 'SCALLOP'); }},
@@ -4011,6 +4027,7 @@ if(typeof document !== 'undefined'){
     {key:'ilShow', label:'Pickets show', hint:'Top of the top Gate Rail up to the tip of the cap', min:3, max:60},
     {key:'ilHighH', label:'High rail height', hint:'From the bottom of the top rail (the lowest point of its underside) to the top of the high rail. Usually 11 1/2.', min:0, max:60},
     {key:'topperH', label:'Topper height', hint:'Top of the gate down to the top of the 2x6 high-rail', min:6, max:60},
+    {key:'ddgTR', label:'Rise', hint:'', min:0, max:60},
     {key:'ddgRise', label:'Rise', hint:'How much taller the center upright is than the outside one. The overall height is the low outside end of each leaf.', min:0, max:60},
     {key:'latSp', label:'Lattice spacing', hint:'The opening between strips, across and up and down. The closest whole number of strips is used.', min:0.5, max:12}
   ];
@@ -4568,11 +4585,16 @@ if(typeof document !== 'undefined'){
     if(crDdg && dnatH === null) inputs.ddgRise.parentNode.querySelector('.hint').textContent = 'At this width the arc is not long enough to reach across the pair, so it has no rise of its own. Type the rise you want: the same arc is tilted to reach it.';
     else if(crDdg) inputs.ddgRise.parentNode.querySelector('.hint').textContent = 'The R' + (state.railSize === 'large' ? (state.topRail === 'SCALLOP' ? GM.crownRiL : GM.crownRoL) : (state.topRail === 'SCALLOP' ? GM.crownRi : GM.crownRo)) + ' arc gives ' + fmt(dnatH) + ' here. Type a different number and the same arc is tilted to reach it' + (state.topRail === 'SCALLOP' ? ': the outside uprights stand that much taller than the center ones, which are at the height.' : ': the center uprights stand that much taller than the outside ones, which are at the height.');
     else inputs.ddgRise.parentNode.querySelector('.hint').textContent = 'How much taller the center upright is than the outside one. The overall height is the low outside end of each leaf.';
+    // double drive gate toppers: the Oklahoma gate, Gate Master frame, no top rail. The open spindle crown and scallop have a Rise / Drop field.
+    var ddgTop = ddgNow && pvcG && !njgOn() && state.topRail === 'none' && state.pframe !== 'pocket', ddgArch = ddgTop && (state.topper === 'OSS' || state.topper === 'OSC');
+    inputs.ddgTR.parentNode.style.display = ddgArch ? '' : 'none';
+    inputs.ddgTR.parentNode.querySelector('.lbl').textContent = state.topper === 'OSS' ? 'Drop' : 'Rise';
+    inputs.ddgTR.parentNode.querySelector('.hint').textContent = state.topper === 'OSS' ? 'How far the tips dip at the middle below the tips of the first and last pickets. 6 is the standard.' : 'How much taller the tallest pickets are than the first and last ones. The Overall height is the first and last picket tips and the rise goes on top. 6 is the standard.';
     var woodG = woodGateTgOn(), woodTop = woodG && state.wTopper !== 'none';
     inputs.ilShow.parentNode.style.display = ilgOn() ? '' : 'none';
     inputs.ilHighH.parentNode.style.display = (ilgOn() && state.ilHigh === 'on') ? '' : 'none';
-    inputs.topperH.parentNode.style.display = ((pvcG && state.topper !== 'none' && !ddgNow) || woodTop) ? '' : 'none';
-    inputs.latSp.parentNode.style.display = (woodTop || (pvcG && state.topper === 'OEN' && !ddgNow)) ? '' : 'none';
+    inputs.topperH.parentNode.style.display = ((pvcG && state.topper !== 'none' && (!ddgNow || ddgTop)) || woodTop) ? '' : 'none';
+    inputs.latSp.parentNode.style.display = (woodTop || (pvcG && state.topper === 'OEN' && (!ddgNow || ddgTop))) ? '' : 'none';
     inputs.latSp.parentNode.querySelector('.hint').textContent = state.wTopper === 'DGL' ? 'The opening between parallel strips, measured square to the strips. The sheet is made at this spacing, then cut to the topper size.' : (pvcG ? 'The opening between the uprights and between the bars. The closest whole number of each is used.' : 'The opening between strips, across and up and down. The closest whole number of strips is used.');
     inputs.topperH.parentNode.querySelector('.hint').textContent = woodTop ? 'Lattice only: the bottom of the bottom strip to the top of the top strip. The 3/4 ledge under it is extra.' : (state.topper === 'OST' && state.topRail !== 'none' && state.width >= GM.crownMin && state.width <= GM.crownMax) ? 'Top of the picket next to the upright down to the top of the 2x6 high-rail' : 'Top of the gate down to the top of the 2x6 high-rail';
     inputs.height.parentNode.querySelector('.hint').textContent = pvcNow ? 'Rail to rail, top and bottom. The posts are 4 taller.' : (pvcG ? (state.pframe === 'pocket' ? ((state.topper === 'OST' || state.topper === 'OSS') ? 'To the tip of the pickets. The posts are 2 taller, 1 above and 1 below.' : (state.topper === 'OSC') ? 'To the tip of the tallest pickets. The posts stand 1 above the end pickets and 1 below the bottom rail.' : 'Rail to rail. The posts are 2 taller, 1 above and 1 below.') : 'Overall, outside to outside') : (ilgOn() ? 'Overall, to the tip of the pyramid caps' : (tgMode ? 'Overall, not counting the cap board' : DIMS[0].hint)));
@@ -4581,6 +4603,8 @@ if(typeof document !== 'undefined'){
     if(ddgNow){
       wHint.textContent = 'The width of each leaf, outside to outside. The two leaves are the same and sit with a 2 gap between them.';
       if(state.topRail === 'SSWEPT') inputs.height.parentNode.querySelector('.hint').textContent = 'The low outside end of each leaf. The rise goes on top of this at the center.';
+      if(ddgTop && state.topper === 'OSC') inputs.height.parentNode.querySelector('.hint').textContent = 'To the tips of the first and last pickets. The rise goes on top of this at the tallest pickets.';
+      if(ddgTop && state.topper === 'OSS') inputs.height.parentNode.querySelector('.hint').textContent = 'To the tips of the first and last pickets. The tips dip below this toward the middle.';
     }
     if(metalNow){
       inputs.height.parentNode.querySelector('.hint').textContent = 'Top of the end pipes to the bottom of the end pipes. The frame sits 4 down from the top and 2 up from the bottom.';
