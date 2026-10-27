@@ -320,7 +320,7 @@ function dowelPart(name, kind, y0, y1, xa, xb, zb, zt){
 var DEFAULTS = {
   material:'wood', kind:'gate', frame:'2x4', style:'lib_seed-gothic4',
   height:56, width:34, gap:2, top:6, bottom:7,
-  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', alFrame:'off', oeHr:'6', latSp:2, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', ddgTLay:'one', ddgShE:4, ddgShM:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, dimMove:{}, calloutMove:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
+  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', alFrame:'off', oeHr:'6', argap:2, latSp:2, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', ddgTLay:'one', ddgShE:4, ddgShM:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, dimMove:{}, calloutMove:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
   so:'', drawn:'', notes:'', copy:'customer', sheetDims:true, view:'work'
 };
 
@@ -738,7 +738,7 @@ function compute(s){
   if(s.material === 'metal') return computeCantilever(s);
   if(s.kind === 'gate' && isDowel(s.frame)) s = Object.assign({}, s, {frame:'2x4'});     // dowel rail is fence only
   if(s.ddg === 'on' && !s.ddgLeaf && s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'njg' || s.dstyle === 'ilg' || s.dstyle === 'oeg')) return computeDDG(s);      // double drive gate: two leaves
-  if(s.material === 'pvc' && s.kind === 'fence' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'oe')) return computePVC(s);
+  if(s.material === 'pvc' && s.kind === 'fence' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'oe' || s.dstyle === 'ar')) return computePVC(s);
   if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'njg' || s.dstyle === 'oeg')) return computePVCGate(s);
   if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && s.dstyle === 'ilg') return computeILG(s);
   if(s.sides === 'double' && s.dstyle === 'tg') return computeTG(s);
@@ -966,31 +966,32 @@ function railLoops(y0, zb, zt, flip){
 var PVC = {post:5, railT:2, railH:6, into:2, extra:2, luc:1, capW:5.125, capUp:0.75, tgIn:3.297};
 function computePVC(s){
   var pk = picketDef(s.style), H = s.height, Wc0 = s.width, warn = [], parts = [], pickets = [], cuts = [];
-  var OE = (s.dstyle === 'oe');      // OE-CUS: the Old English section, the Oklahoma section with a grid of uprights and bars instead of the T&G and plain 2 x 3 1/2 rails
-  var Pt = PVC.post, RH = OE ? 3.5 : PVC.railH, yc = Pt/2;
+  var AR = (s.dstyle === 'ar');      // 2AR-CUS: the Arkansas section, 1 1/2 square pickets that pass through the high rails and stop inside the top rail
+  var OE = (s.dstyle === 'oe'), PL = OE || AR;      // PL: plain 2 x 3 1/2 rails and no T&G      // OE-CUS: the Old English section, the Oklahoma section with a grid of uprights and bars instead of the T&G and plain 2 x 3 1/2 rails
+  var Pt = PVC.post, RH = PL ? 3.5 : PVC.railH, yc = Pt/2;
   // Section width is the clear space between the posts. The rails are 2 longer into each post, and the T&G runs across the clear space.
   var Hp = H + 2*PVC.extra, Ws = Wc0 + 2*PVC.into, Wt = Wc0 + 2*Pt;
   var xL = Pt, xR = Pt + Wc0, Wc = Wc0;
   var z0 = PVC.extra, z1 = z0 + H;
   var ry0 = yc - PVC.railT/2, ry1 = yc + PVC.railT/2, lucY0 = yc - PVC.luc/2, lucY1 = yc + PVC.luc/2;
-  if(!OE && !(pk.pitch > 0)) warn.push('Pick a T&G board from the board list. The PVC 7811TG is in the library.');
+  if(!PL && !(pk.pitch > 0)) warn.push('Pick a T&G board from the board list. The PVC 7811TG is in the library.');
   var tT = pk.t || 0.875, pitch = pk.pitch > 0 ? pk.pitch : (pk.w || 11.25);
   if(H < 2*RH + 10) warn.push('Section height is too short for the top and bottom rails.');
-  if(!OE && Wc < pitch) warn.push('Section width is too narrow. The T&G needs at least one board between the posts.');
+  if(!PL && Wc < pitch) warn.push('Section width is too narrow. The T&G needs at least one board between the posts.');
   [0, Wt - Pt].forEach(function(px, i){
     parts.push({layer:'FRAME', kind:'post', name:'Post '+(i+1), dir:'v', sord:(i === 0 ? -1 : 5), sideOrd:-1, y0:0, y1:Pt, pts:rect(px, 0, px+Pt, Hp)});
   });
   // Rails: top and bottom, plus any mid-rails added by hand. A mid-rail is the same rail as the top one, with a slot ripped through the top wall, just wide
   // enough for the T&G, so the T&G above it rests in the top chamber. Mid-rails are placed by the space between the rails, measured from the top rail down.
   // The rails are drawn between the posts; the 2 that go into each post are hidden, but the export and cut list use the full length.
-  var hm = OE ? (String(s.oeHr) === '3.5' ? 3.5 : 6) : 6, railsAll = [];      // hm: the height of a mid-rail, or of a high rail on the Old English section (2 x 6 or 2 x 3 1/2)
+  var hm = PL ? (String(s.oeHr) === '3.5' ? 3.5 : 6) : 6, railsAll = [];      // hm: the height of a mid-rail, or of a high rail on the Old English section (2 x 6 or 2 x 3 1/2)
   function mkRail(name, zb, zt, kind){
-    var ld = OE ? ((kind === 'mid' && hm === 6) ? railLoops(ry0, zb, zt, true) : {outer:rect(ry0, zb, ry1, zt), holes:[rect(ry0 + GM.wall, zb + GM.wall, ry1 - GM.wall, zt - GM.wall)]})
+    var ld = PL ? ((kind === 'mid' && hm === 6) ? railLoops(ry0, zb, zt, true) : {outer:rect(ry0, zb, ry1, zt), holes:[rect(ry0 + GM.wall, zb + GM.wall, ry1 - GM.wall, zt - GM.wall)]})
       : (kind === 'bottom' ? railLoops(ry0, zb, zt, false) : (kind === 'mid' ? railLoopsMid(ry0, zb) : railLoops(ry0, zb, zt, true)));
     var pr = {layer:'FRAME', kind:'rail', name:name, dir:'h', sord:1, sideOrd:-0.5, y0:ry0, y1:ry1, yBack:ry1 + 0.25, pts:rect(xL, zb, xR, zt), stepPts:rect(Pt - PVC.into, zb, xR + PVC.into, zt),      // yBack: seen from the back the rail is in front of the T&G that goes into it, so it shows its full 2x6
       loops:ld, x0:Pt - PVC.into, x1:xR + PVC.into};
-    pr.isoBodies = OE ? null : railIso(ld, yc, xL, xR);      // the Old English rails are one plain piece in the isometric
-    if(OE){ pr.slotTops = []; railsAll.push(pr); }
+    pr.isoBodies = (PL || kind === 'top' || kind === 'mid') ? null : railIso(ld, yc, xL, xR);      // the top and mid-rails (and the Old English and Arkansas rails) are one plain piece in the isometric: the split along the top left a line down the middle
+    pr.slotTops = []; railsAll.push(pr);
     return pr;
   }
   parts.push(mkRail('Bottom rail', z0, z0+RH, 'bottom'));
@@ -1005,11 +1006,17 @@ function computePVC(s){
   });
   secs.push({up:prevBot, lo:z0+RH, loMid:false}); ranges.push([z0+RH, prevBot]);
   var lastSpace = prevBot - (z0 + RH);
+  // Isometric paint order, from the bottom: each rail gets its own number, and the T&G (and LUC) of a space above a mid-rail is painted after the rail below it, so it stands in the slot of the
+  // mid-rail instead of being covered by its top. The bottom space is painted first, so the rails cover the ends of its boards.
+  railsAll.slice().sort(function(a, b){ return a.pts[0][1] - b.pts[0][1]; }).forEach(function(r, k){
+    r.sord = 1 + 0.3*k; r.sideOrd = -0.5;
+    if(!PL && r.name.indexOf('Mid rail') === 0) r.slotTops.push({x0:xL, x1:xR, z:r.pts[2][1], y0:yc - (tT/2 + 0.08), y1:yc + (tT/2 + 0.08), so:r.sord + 0.02});      // the narrow slot ripped through the top, just wider than the T&G (a drawing effect: the real profile is in the side view and the STEP)
+  });
   ranges.forEach(function(rg){ if(rg[1] - rg[0] < -0.001){ if(warn.indexOf('Two rails overlap. Check the spaces between the rails.') < 0) warn.push('Two rails overlap. Check the spaces between the rails.'); } });
-  if(!OE) secs.forEach(function(sc, k){
+  if(!PL) secs.forEach(function(sc, k){
     if(sc.up - sc.lo < 0.01) return;
     [xL, xR - PVC.luc].forEach(function(lx, i){
-      parts.push({layer:'FRAME', kind:'luc', name:'LUC '+(k*2 + i + 1), dir:'v', sord:0.5, y0:lucY0, y1:lucY1, pts:rect(lx, sc.lo, lx+PVC.luc, sc.up)});
+      parts.push({layer:'FRAME', kind:'luc', name:'LUC '+(k*2 + i + 1), dir:'v', sord:(secs.length - 1 - k >= 1 ? 1 + 0.3*(secs.length - 1 - k) + 0.12 : 0.5), y0:lucY0, y1:lucY1, pts:rect(lx, sc.lo, lx+PVC.luc, sc.up)});
     });
   });
   var co = (PVC.capW - Pt)/2;
@@ -1036,7 +1043,7 @@ function computePVC(s){
   var real = pk.id === 'seed-7811tg' || /7811/i.test(pk.name || ''), bH = 0;
   // The T&G is cut into a piece between each pair of rails: the top end goes up into the channel of the rail above (2.7 deep), the bottom end goes
   // down into the channel of the bottom rail, or rests in the top chamber of a mid-rail.
-  if(!OE) secs.forEach(function(sc, k){
+  if(!PL) secs.forEach(function(sc, k){
     var bz0 = sc.lo - (sc.loMid ? CH : (RH - PVC.tgIn)), bz1 = sc.up + (RH - PVC.tgIn), sfx = secs.length > 1 ? ' (section '+(k+1)+')' : '';
     if(k === 0) bH = bz1 - bz0;
     for(var i=0;i<n;i++){
@@ -1056,6 +1063,7 @@ function computePVC(s){
       } else {
         bd.prof = tgProfile(ox + eT, ty0, Math.max(0.5, vis1 - vis0), tT, {noTongue:false, noGroove:last, e:eT});
       }
+      if(secs.length - 1 - k >= 1) bd.isoSegs = [{z:[sc.lo, bz1], so:1 + 0.3*(secs.length - 1 - k) + 0.1}];      // above a mid-rail: only the part above the rail shows, painted after it
       pickets.push(bd);
     }
   });
@@ -1119,10 +1127,32 @@ function computePVC(s){
     if(oeShort) warn.push('A space between the rails is under ' + fmt(6.5) + ', too short for two bars, so it is left empty (my pick for the minimum).');
     oeInfo = {nUp:oeM, nBar:oeNb, xs:oeXs, gapX:oeGx, gapZ:oeGzShow, zMid:oeZShow, bz:oeBzShow, yF:yc - GM.spW/2};
   }
+  var arInfo = null;
+  if(AR){
+    // Arkansas: 1 1/2 square hollow pickets (1/16 wall), the first and last flush against the posts, spaced to the whole number whose space comes closest to the typed one (2 to start). They run in one
+    // piece from 1 inside the bottom rail to 1 inside the top rail, passing through square cutouts in any high rails, and never go above the top rail.
+    var arByZ = railsAll.slice().sort(function(a, b){ return a.pts[0][1] - b.pts[0][1]; });
+    arByZ.forEach(function(r, k){ r.sord = 1 + 0.3*k; r.sideOrd = -0.5; });
+    var arWant = (+s.argap >= 0) ? +s.argap : 2, arN = 2, arBest = 1e9, arq, arg, ard, arIn = 1;
+    for(arq=2; arq<=400; arq++){ arg = (Wc - GM.spW*arq)/(arq - 1); if(arg < -1e-9) break; ard = Math.abs(arg - arWant); if(ard < arBest - 1e-9){ arBest = ard; arN = arq; } }
+    var arGap = (Wc - GM.spW*arN)/(arN - 1), arXs = [], aoy0 = yc - GM.spW/2, aoy1 = yc + GM.spW/2, aow = GM.spWall, arVm = Math.min(0.2, Math.max(0.05, arGap/4));
+    if(Wc < 2*GM.spW) warn.push('The section is too narrow for two pickets between the posts.');
+    var arZa = z0 + RH - arIn, arZb = z1 - RH + arIn;
+    for(arq=0; arq<arN; arq++){
+      var apx0 = xL + arq*(GM.spW + arGap), apx1 = apx0 + GM.spW, aoP = [[apx0,aoy0],[apx1,aoy0],[apx1,aoy1],[apx0,aoy1]], ahP = [[apx0 + aow,aoy0 + aow],[apx1 - aow,aoy0 + aow],[apx1 - aow,aoy1 - aow],[apx0 + aow,aoy1 - aow]];
+      var aSegs = [];
+      secs.forEach(function(sc, k){ if(sc.up - sc.lo < 0.01) return; var kB = secs.length - 1 - k; aSegs.push({z:[sc.lo, sc.up + arIn], so:1 + 0.3*kB + 0.1 + 0.0005*arq}); });      // the part between two rails: each piece is painted after the rail below it and before the rail above it
+      pickets.push({layer:'PICKET', name:'Picket ' + (arq + 1), y0:aoy0, y1:aoy1, yBack:aoy1, noSide:true, pts:rect(apx0, arZa, apx1, arZb), prof:aoP, loops:{outer:aoP, holes:[ahP]}, isoSegs:aSegs});
+      arXs.push((apx0 + apx1)/2);
+      arByZ.forEach(function(rl, k){ if(k < arByZ.length - 1) rl.slotTops.push({x0:apx0 - arVm, x1:apx1 + arVm, z:rl.pts[2][1], y0:aoy0 - arVm, y1:aoy1 + arVm, so:rl.sord + 0.02}); });      // the 1.56 square cutout in the top of each rail the pickets pass through, drawn a little wider (a drawing effect only)
+    }
+    cuts.push({part:'Pickets', qty:arN, stock:fmt(GM.spW) + ' x ' + fmt(GM.spW) + ' hollow', length:arZb - arZa, note:'Space ' + fmt(arGap) + '. ' + fmt(arIn) + ' into the top and bottom rail, ' + fmt(GM.spCut) + ' square cutouts, through any high rails. First and last flush against the posts.'});
+    arInfo = {n:arN, gap:arGap, xs:arXs, zMid:(secs[0].up + secs[0].lo)/2, zGap:(secs[secs.length - 1].up + secs[secs.length - 1].lo)/2};
+  }
   cuts.push({part:'Posts', qty:2, stock:'5 x 5', length:Hp, note:'4 longer than the section height'});
   cuts.push({part:'Top and bottom rails', qty:2, stock:'2 x ' + fmt(RH), length:Ws, note:'2 goes inside each post'});
-  if(midZ.length) cuts.push({part:(OE ? 'High rails' : 'Mid rails'), qty:midZ.length, stock:'2 x ' + fmt(hm), length:Ws, note:(OE ? 'Square cutouts for the uprights' : 'Slot ripped through the top for the T&G')});
-  if(!OE) secs.forEach(function(sc, k){
+  if(midZ.length) cuts.push({part:(PL ? 'High rails' : 'Mid rails'), qty:midZ.length, stock:'2 x ' + fmt(hm), length:Ws, note:(OE ? 'Square cutouts for the uprights' : (AR ? 'Square cutouts for the pickets' : 'Slot ripped through the top for the T&G'))});
+  if(!PL) secs.forEach(function(sc, k){
     var bt = sc.up - sc.lo + (RH - PVC.tgIn) + (sc.loMid ? CH : (RH - PVC.tgIn));
     cuts.push({part:'T&G boards' + (secs.length > 1 ? ' (section '+(k+1)+')' : ''), qty:n, stock:pk.name, length:bt, note:rip ? 'Last board cut to ' + fmt(lastW) : 'Last board has no tongue'});
     cuts.push({part:'LUC' + (secs.length > 1 ? ' (section '+(k+1)+')' : ''), qty:2, stock:'1 x 1', length:Math.max(0, sc.up - sc.lo), note:'One at each end of the T&G'});
@@ -1135,9 +1165,9 @@ function computePVC(s){
     inner:{x0:xL, x1:xR}, bH:bH, Ws:Ws, Wc:Wc,
     depth:{y0:0, y1:Pt},
     tg:{pitch:pitch, lastW:lastW, rip:rip, spaces:[], lastSpace:0, midC:[], spaceRanges:ranges, fSpaces:[], fLastSpace:0, fMidC:[]},
-    pv:{lastSpace:lastSpace, hm:hm, mids:midZ, rh:RH}, oef:(OE ? oeInfo : null),
+    pv:{lastSpace:lastSpace, hm:hm, mids:midZ, rh:RH}, oef:(OE ? oeInfo : null), arf:(AR ? arInfo : null),
     vbreaks:[[z0, z1]],
-    tgNote: OE ? ('Old English, ' + (oeInfo ? oeInfo.nUp + ' uprights, ' + oeInfo.nBar + ' bars' : '')) : (n + ' T&G boards' + (rip ? ', last cut to ' + fmt(lastW) : ''))
+    tgNote: AR ? (arInfo.n + ' pickets, space ' + fmt(arInfo.gap)) : OE ? ('Old English, ' + (oeInfo ? oeInfo.nUp + ' uprights, ' + oeInfo.nBar + ' bars' : '')) : (n + ' T&G boards' + (rip ? ', last cut to ' + fmt(lastW) : ''))
   };
 }
 
@@ -3582,7 +3612,7 @@ function isoSvg(c, box, wood){
         var zz = sg.z || p.pts.map(function(q){ return q[1]; });
         b = facesZ({prof:p.prof, z0:Math.min.apply(null,zz), z1:Math.max.apply(null,zz), zf:p.zTop});
       } else b = faces({pts:p.pts, y0:r[0], y1:r[1]});
-      b.y0 = r[0]; b.so = sg.so || 0; b.zlo = Math.min.apply(null, p.pts.map(function(q){ return q[1]; })); b.box = boxOf(p, r); if(p.vg && c.pvc) b.vgSrc = {vg:p.vg, pts:p.pts, y0:r[0], zTop:p.zTop}; pick.push(b);
+      b.y0 = r[0]; b.so = sg.so || 0; b.zlo = Math.min.apply(null, p.pts.map(function(q){ return q[1]; })); b.box = boxOf(p, r); if(p.vg && c.pvc) b.vgSrc = {vg:p.vg, pts:p.pts, y0:r[0], zTop:p.zTop, zLo:(sg.z ? Math.min.apply(null, sg.z) : undefined)}; pick.push(b);
     });
   });
   frame.sort(function(a,b){ return b.depth - a.depth; });
@@ -3619,6 +3649,7 @@ function isoSvg(c, box, wood){
       });
       if(bd.vgSrc){      // PVC T&G: the dark V and joint on the front face, painted right after their own board
         var vs = bd.vgSrc, vx = vs.pts.map(function(q){ return q[0]; }), vz = vs.pts.map(function(q){ return q[1]; }), vz0 = Math.min.apply(null, vz), vz1 = Math.max.apply(null, vz);
+        if(vs.zLo !== undefined) vz0 = Math.max(vz0, vs.zLo);      // a board that is only drawn above a rail: the V stops at the rail too
         var sp3 = function(x, z){ var q = P(x, vs.y0, z); return (bx + (q[0]-cx)*sc).toFixed(2) + ',' + (by - (q[1]-cy)*sc).toFixed(2); };
         pvcBands(Math.min.apply(null, vx), Math.max.apply(null, vx), vs.vg).forEach(function(bn){
           var zt = function(x){ return vs.zTop ? vs.zTop(x) : vz1; };
@@ -3868,11 +3899,12 @@ function sheetSvg(c, info){
       addR('spindle', fmt(GM.spW) + ' X ' + fmt(GM.spW), 'SPINDLE', [0.3, 0.5, 0.7].map(function(f){ var k = Math.min(c.oef.nUp - 1, Math.max(0, Math.round((c.oef.nUp - 1)*f))); return [c.oef.xs[k], c.oef.zMid]; }), 45);
       addR('oebar', fmt(GM.oeBar) + ' X ' + fmt(GM.spW), 'PICKET', oeBarPts(c.oef, [0.3, 0.5, 0.7]), 225);
     }
+    else if(c.arf) addR('spindle', fmt(GM.spW) + ' X ' + fmt(GM.spW), 'PICKET', [0.3, 0.5, 0.7].map(function(f){ return [c.arf.xs[Math.min(c.arf.n - 1, Math.max(0, Math.round((c.arf.n - 1)*f)))], c.arf.zMid]; }), 45);
     else addR('tg', fmt(pk.t)+' X '+fmt(pk.w), (pk.name + (/t\s*&\s*g/i.test(pk.name) ? '' : ' T&G')).toUpperCase(), [[c.x0 + c.Wc*0.3, pMid + c.frameH*0.15],[c.x0 + c.Wc*0.5, pMid - c.frameH*0.1],[c.x0 + c.Wc*0.7, pMid + c.frameH*0.2]], 225);      // pointed at the middle of the T&G, whatever the width
     addR('rail', fmt(c.f.t)+' X '+fmt(c.f.w), 'TOP & BOTTOM RAIL', [[pW*0.3, c.z1 - c.f.w/2],[pW*0.7, c.z0 + c.f.w/2],[pW*0.5, c.z1 - c.f.w/2]], 225);
-    if(c.pv.mids.length) addR('rail', fmt(c.f.t)+' X '+fmt(c.oef ? c.pv.hm : c.f.w), c.oef ? 'HIGH RAIL' : 'MID RAIL (RIPPED)', c.pv.mids.map(function(m){ return [pW*0.45, (m[0] + m[1])/2]; }), 225);
+    if(c.pv.mids.length) addR('rail', fmt(c.f.t)+' X '+fmt((c.oef || c.arf) ? c.pv.hm : c.f.w), (c.oef || c.arf) ? 'HIGH RAIL' : 'MID RAIL (RIPPED)', c.pv.mids.map(function(m){ return [pW*0.45, (m[0] + m[1])/2]; }), 225);
     addR('post', '5 X 5', 'POST', [[2.5, pH*0.5],[pW - 2.5, pH*0.5],[2.5, pH*0.3]], 180);
-    if(!c.oef) addR('luc', '1 X 1', 'LUC', [[c.x0 + 0.5, pMid],[c.inner.x1 - 0.5, pMid]], 180);
+    if(!c.oef && !c.arf) addR('luc', '1 X 1', 'LUC', [[c.x0 + 0.5, pMid],[c.inner.x1 - 0.5, pMid]], 180);
     addR('cap', fmt(5), 'TRADITIONAL CAP', [[2.5, pH + c.CAPT/2],[pW - 2.5, pH + c.CAPT/2]], 270); tgRows[tgRows.length-1].alsoBack = true;
   } else if(c.mode === 'tg'){
     var mp0 = wood ? '' : 'PVC ', gateB = s.kind === 'gate', tW = c.W, tHt = c.Ht, tFW = c.FW, tPitch = c.tg.pitch;
@@ -3979,6 +4011,13 @@ function sheetSvg(c, info){
       function ngLn(x1, y1, x2, y2){ return '<line x1="' + n3(x1) + '" y1="' + n3(y1) + '" x2="' + n3(x2) + '" y2="' + n3(y2) + '" stroke="' + ngK + '" stroke-width="' + n3(ngSw) + '"/>'; }
       o.push(dimWrap('h', ngl, ngLn(ngA, ngy - ngS*0.7, ngA, ngy + ngS*0.7) + ngLn(ngB, ngy - ngS*0.7, ngB, ngy + ngS*0.7) + ngLn(ngA - ngLen - ngS*0.5, ngy, ngA, ngy) + ngLn(ngB, ngy, ngTx - 1, ngy) +
         arrowSvg(ngA, ngy, 1, 0, ngLen, ngHw, ngK) + arrowSvg(ngB, ngy, -1, 0, ngLen, ngHw, ngK) + richTextSvg(ngTx, ngy, shownLabel('h', ngl), ngS, ngK, 'start', true)));
+    }
+    if(c.arf && c.arf.n > 1 && r8(c.arf.gap) > 0.004 && +c.s.argap > 0){      // Arkansas section: the space between the pickets (they are all the same), to the nearest 1/8, on the gap next to the post at the left of this view, with its number out on the left so it takes no room under the section
+      var agx0 = c.arf.xs[c.arf.n - 2] + GM.spW/2, agx1 = c.arf.xs[c.arf.n - 1] - GM.spW/2, agS = stB.size, agl = fmt(r8(c.arf.gap)), agy = BM.Y(c.arf.zGap);
+      var agA = BM.X(c.W - agx1), agB = BM.X(c.W - agx0), agK = DIM_RED, agLen = agS*0.8, agHw = agS*0.14, agSw = stB.sw || agS*0.06, agTw = richLayout(shownLabel('h', agl), agS, true).width, agEnd = bx0 - 0.6*agS, agTx = agEnd - agTw;
+      function agLn(x1, y1, x2, y2){ return '<line x1="' + n3(x1) + '" y1="' + n3(y1) + '" x2="' + n3(x2) + '" y2="' + n3(y2) + '" stroke="' + agK + '" stroke-width="' + n3(agSw) + '"/>'; }
+      o.push(dimWrap('h', agl, agLn(agA, agy - agS*0.7, agA, agy + agS*0.7) + agLn(agB, agy - agS*0.7, agB, agy + agS*0.7) + agLn(agB, agy, agB + agLen + agS*0.5, agy) + agLn(agTx + agTw + 1, agy, agA, agy) +
+        arrowSvg(agA, agy, 1, 0, agLen, agHw, agK) + arrowSvg(agB, agy, -1, 0, agLen, agHw, agK) + richTextSvg(agTx, agy, shownLabel('h', agl), agS, agK, 'start', true)));
     }
     if(c.ilg){      // Illinois gate: how much picket and cap shows above the top rail, and the frame under it
       o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(c.ilg.showZ1), BM.Y(c.ilg.showZ0), fmt(c.ilg.show), bx1, bx1, stB, 1));
@@ -4269,9 +4308,9 @@ if(typeof document !== 'undefined'){
     {key:'mwire', label:'Black wire (gate side only)', metal:true, choices:[['off','Off'],['on','On']], when:function(){ return state.material === 'metal'; }},
     {key:'mswing', label:'Swing gate opening', metal:true, choices:[['off','Off'],['on','On']], when:function(){ return state.material === 'metal'; }},
     {key:'sides', label:'Sides', choices:[['single','Single sided'],['double','Double sided']]},
-    {key:'dstyle', label:'Double sided style', choices:[['both','Pickets both sides'],['tg','T&G (Oklahoma)'],['ilg','ILG-CUS<small>(Illinois gate)</small>'],['njg','NJG-CUS<small>(New Jersey gate)</small>'],['oe','OE-CUS<small>(Old English)</small>'],['oeg','OEG-CUS<small>(Old English gate)</small>']], when:function(){ return state.sides === 'double'; }},
+    {key:'dstyle', label:'Double sided style', choices:[['both','Pickets both sides'],['tg','T&G (Oklahoma)'],['ilg','ILG-CUS<small>(Illinois gate)</small>'],['njg','NJG-CUS<small>(New Jersey gate)</small>'],['oe','OE-CUS<small>(Old English)</small>'],['oeg','OEG-CUS<small>(Old English gate)</small>'],['ar','2AR-CUS<small>(Arkansas)</small>']], when:function(){ return state.sides === 'double'; }},
     {key:'align', label:'Back pickets', choices:[['aligned','Directly behind'],['stagger','Staggered in the gaps']], when:function(){ return state.sides === 'double' && state.dstyle === 'both'; }},
-    {key:'oeHr', label:'High rail size', choices:[['6','2 x 6'],['3.5','2 x 3 1/2']], when:function(){ return oeOn() || oegOn(); }},
+    {key:'oeHr', label:'High rail size', choices:[['6','2 x 6'],['3.5','2 x 3 1/2']], when:function(){ return oeOn() || oegOn() || arOn(); }},
     {key:'pframe', label:'Frame', choices:[['gm','Gate Master frame'],['pocket','Pocket frame']], when:function(){ return pvcGateOn() && !njgOn() && !oegOn(); }},
     {key:'alFrame', label:'Aluminum back frame', choices:[['off','Off'],['on','On']], when:function(){ return pvcGateOn() && !njgOn() && !oegOn() && state.pframe !== 'pocket'; }},
     {key:'ppost', label:'Post size', choices:[['5','5x5 post'],['4','4x4 post'],['3.5','3 1/2 x 3 1/2 Gate Master']], when:function(){ return pvcGateOn() && !njgOn() && !oegOn() && state.pframe === 'pocket'; }},
@@ -4289,7 +4328,8 @@ if(typeof document !== 'undefined'){
     {key:'fascia', label:'Front fascia', choices:[['1x4','1x4'],['1x6','1x6'],['2x4','2x4'],['2x6','2x6']], when:function(){ return tgFenceOn() && !pvcOK(); }},
     {key:'back', label:'Back rails', choices:[['1x4','1x4'],['1x6','1x6'],['2x4','2x4'],['2x6','2x6'],['dowel','2x3 Dowel Rail'],['dowel4','2x4 Dowel Rail']], when:function(){ return tgFenceOn() && !pvcOK(); }}
   ];
-  function tgFenceOn(){ return state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'oe') && state.kind === 'fence'; }
+  function tgFenceOn(){ return state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'oe' || state.dstyle === 'ar') && state.kind === 'fence'; }
+  function arOn(){ return state.sides === 'double' && state.dstyle === 'ar' && state.kind === 'fence' && state.material === 'pvc'; }       // PVC Arkansas section (2AR-CUS): 1 1/2 square pickets between 2 x 3 1/2 rails
   function oeOn(){ return state.sides === 'double' && state.dstyle === 'oe' && state.kind === 'fence' && state.material === 'pvc'; }       // PVC Old English section (OE-CUS): the Oklahoma section with a grid of uprights and bars
   function pvcGateOn(){ return state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'njg' || state.dstyle === 'oeg') && state.kind === 'gate' && state.material === 'pvc'; }
   function oegOn(){ return state.sides === 'double' && state.dstyle === 'oeg' && state.kind === 'gate' && state.material === 'pvc'; }       // PVC Old English gate (OEG-CUS): Gate Rail frame and a grid of uprights and bars       // PVC Oklahoma gate: Gate Master frame, T&G, braces and plugs
@@ -4393,6 +4433,15 @@ if(typeof document !== 'undefined'){
   njShow();
   njIn.addEventListener('input', function(){ var v = parseIn(njIn.value), ok = isFinite(v) && v >= 0 && v <= 12; njIn.classList.toggle('bad', !ok); if(ok){ state.njgap = v; update(true); } });
   njIn.addEventListener('blur', function(){ njShow(); njIn.classList.remove('bad'); });
+  // Arkansas section: the space between the pickets (2 to start). The app uses the whole number of pickets whose space comes closest to it.
+  var arFs = document.createElement('fieldset');
+  arFs.innerHTML = '<div class="field"><label class="lbl" for="in_argap">Space between pickets</label><input type="text" id="in_argap" inputmode="decimal" autocomplete="off"><div class="hint" id="argHint"></div></div>';
+  segFs.topRail.parentNode.insertBefore(arFs, njFs.nextSibling);
+  var arIn = arFs.querySelector('#in_argap');
+  function arShow(){ arIn.value = fmt(state.argap); }
+  arShow();
+  arIn.addEventListener('input', function(){ var v = parseIn(arIn.value), ok = isFinite(v) && v >= 0 && v <= 12; arIn.classList.toggle('bad', !ok); if(ok){ state.argap = v; update(true); } });
+  arIn.addEventListener('blur', function(){ arShow(); arIn.classList.remove('bad'); });
   // Mid fascia / mid-rail boxes (Oklahoma): spaces are measured between the rails, from the top rail down
   function midBox(key, title, topName, lastKey, widthKey, opt){
     opt = opt || {}; var noun = opt.noun || 'board';
@@ -4493,7 +4542,7 @@ if(typeof document !== 'undefined'){
   function sameStyle(a, b){ return a.material === b.material && a.kind === b.kind && a.dstyle === b.dstyle; }      // a preset belongs to the build and style it was saved under
   function renderPresetBtns(){
     var host = presetFs.querySelector('#presetBtns'); if(!host) return;
-    var lg = presetFs.querySelector('legend'); if(lg) lg.textContent = (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'oe') ? 'OE-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'oeg') ? 'OEG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'tg') ? 'OKG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'ilg') ? 'ILG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'njg') ? 'NJG-CUS presets' : 'Presets';
+    var lg = presetFs.querySelector('legend'); if(lg) lg.textContent = (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'ar') ? '2AR-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'oe') ? 'OE-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'oeg') ? 'OEG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'tg') ? 'OKG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'ilg') ? 'ILG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'njg') ? 'NJG-CUS presets' : 'Presets';
     var h = '';
     presets.forEach(function(q, i){
       if(!sameStyle(q.data, state)) return;
@@ -4668,7 +4717,7 @@ if(typeof document !== 'undefined'){
 
   function renderPickets(){
     if(state.material === 'metal'){ el('picketHost').innerHTML = ''; return; }      // metal has no pickets
-    if(ilgOn() || njgOn() || oeOn() || oegOn()){ el('picketHost').innerHTML = ''; return; }      // the Illinois gate has its own fixed 1 1/2 spindle pickets, nothing to pick
+    if(ilgOn() || njgOn() || oeOn() || oegOn() || arOn()){ el('picketHost').innerHTML = ''; return; }      // the Illinois gate has its own fixed 1 1/2 spindle pickets, nothing to pick
     var tgMode = state.sides === 'double' && state.dstyle === 'tg';
     var list = listPickets(state.material, tgMode ? 'tg' : undefined);
     if(!list.some(function(d){ return d.key === state.style; })) state.style = list.length ? list[0].key : picketDef('').key;
@@ -4850,14 +4899,14 @@ if(typeof document !== 'undefined'){
   });
 
   function syncUI(){
-    var tgMode = state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'oe' || state.dstyle === 'oeg'), tgFence = tgMode && state.kind === 'fence';
+    var tgMode = state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'oe' || state.dstyle === 'oeg' || state.dstyle === 'ar'), tgFence = tgMode && state.kind === 'fence';
     SEGS.forEach(function(g){ segFs[g.key].style.display = (!g.when || g.when()) ? '' : 'none'; });      // groups without a rule always show (Sides comes back after Metal hid it)
     if(presetFs) presetFs.style.display = (state.sides === 'double' && state.material !== 'metal') ? '' : 'none';      // presets are offered once Double sided is chosen
     // a PVC gate's Oklahoma style is the code OKG-CUS with its description under it; the other builds keep the plain name
     var tgIn = segFs.dstyle && segFs.dstyle.querySelector('input[value="tg"]');
     if(tgIn && tgIn.nextElementSibling){
-      var tgSp = tgIn.nextElementSibling, tgWant = (state.material === 'pvc' && state.kind === 'gate') ? 'code' : (state.material === 'wood' && state.kind === 'gate') ? 'wcode' : 'plain';
-      if(tgSp.dataset.lab !== tgWant){ tgSp.dataset.lab = tgWant; tgSp.innerHTML = tgWant === 'code' ? 'OKG-CUS<small>(Oklahoma gate)</small>' : tgWant === 'wcode' ? 'WOKG-CUS<small>(Wood Oklahoma gate)</small>' : 'T&amp;G (Oklahoma)'; }
+      var tgSp = tgIn.nextElementSibling, tgWant = (state.material === 'pvc' && state.kind === 'gate') ? 'code' : (state.material === 'wood' && state.kind === 'gate') ? 'wcode' : (state.kind === 'fence' && state.material !== 'metal') ? 'okcode' : 'plain';
+      if(tgSp.dataset.lab !== tgWant){ tgSp.dataset.lab = tgWant; tgSp.innerHTML = tgWant === 'code' ? 'OKG-CUS<small>(Oklahoma gate)</small>' : tgWant === 'wcode' ? 'WOKG-CUS<small>(Wood Oklahoma gate)</small>' : tgWant === 'okcode' ? 'OK-CUS<small>(Oklahoma)</small>' : 'T&amp;G (Oklahoma)'; }
     }
     // ILG-CUS is only for a PVC gate: hide its button elsewhere, and a build that had it falls back to T&G (Oklahoma)
     var ilgIn = segFs.dstyle && segFs.dstyle.querySelector('input[value="ilg"]'), ilgOk = state.material === 'pvc' && state.kind === 'gate';
@@ -4866,9 +4915,10 @@ if(typeof document !== 'undefined'){
     var njIn2 = segFs.dstyle && segFs.dstyle.querySelector('input[value="njg"]');
     if(njIn2) (njIn2.closest('label') || njIn2.parentNode).style.display = ilgOk ? '' : 'none';
     if((njgOn() || oegOn()) && state.pframe !== 'gm'){ state.pframe = 'gm'; var pfg = segFs.pframe.querySelector('input[value="gm"]'); if(pfg) pfg.checked = true; }      // the New Jersey gate has no pocket frame
-    var oeIn2 = segFs.dstyle && segFs.dstyle.querySelector('input[value="oe"]'), oeOk = state.material === 'pvc' && state.kind === 'fence';      // OE-CUS is only for a PVC fence
+    var oeIn2 = segFs.dstyle && segFs.dstyle.querySelector('input[value="oe"]'), oeOk = state.material === 'pvc' && state.kind === 'fence';      // OE-CUS and 2AR-CUS are only for a PVC fence
     if(oeIn2) (oeIn2.closest('label') || oeIn2.parentNode).style.display = oeOk ? '' : 'none';
-    if((state.dstyle === 'ilg' || state.dstyle === 'njg' || state.dstyle === 'oeg') && !ilgOk || state.dstyle === 'oe' && !oeOk){ state.dstyle = 'tg'; var tgBack = segFs.dstyle.querySelector('input[value="tg"]'); if(tgBack) tgBack.checked = true; renderPickets(); }
+    var arIn2 = segFs.dstyle && segFs.dstyle.querySelector('input[value="ar"]'); if(arIn2) (arIn2.closest('label') || arIn2.parentNode).style.display = oeOk ? '' : 'none';
+    if((state.dstyle === 'ilg' || state.dstyle === 'njg' || state.dstyle === 'oeg') && !ilgOk || (state.dstyle === 'oe' || state.dstyle === 'ar') && !oeOk){ state.dstyle = 'tg'; var tgBack = segFs.dstyle.querySelector('input[value="tg"]'); if(tgBack) tgBack.checked = true; renderPickets(); }
     if(presetFs) renderPresetBtns();
     // Framing is the normal 2x3 / 2x4 / 2x6 choice; an older saved 1x4 or 1x6 falls back to 2x4
     // The dowel rail is fence only: hide it on gates, and a gate that had it falls back to 2x4
@@ -4887,6 +4937,7 @@ if(typeof document !== 'undefined'){
     pmidBox.fs.style.display = (pvcNow || oegOn()) ? '' : 'none';
     ['gap','top','bottom'].forEach(function(k){ inputs[k].parentNode.style.display = (tgMode || ilgOn() || njgOn()) ? 'none' : ''; });
     njFs.style.display = njgOn() ? '' : 'none';
+    arFs.style.display = arOn() ? '' : 'none';
     var metalNow = state.material === 'metal';      // metal shows only Material, Build, Balance, Flip, Wire and Bracing, plus the height and width
     if(metalNow){
       SEGS.forEach(function(g){ if(!g.metal && g.key !== 'material') segFs[g.key].style.display = 'none'; });
@@ -4948,7 +4999,7 @@ if(typeof document !== 'undefined'){
       var mh = el(midBox2.hint);
       if(mh) mh.textContent = 'Spaces are measured between the rails. Last space, to the bottom back rail: ' + fmt(c.tg.lastSpace);
     }
-    if(c.pv){ var pml = pmidBox.fs.querySelector('legend'); if(pml) pml.textContent = c.oef ? 'High rails' : 'Mid-rails'; var ph = el(pmidBox.hint); if(ph) ph.textContent = 'Spaces are measured between the rails, from the top rail down. Last space, to the bottom rail: ' + fmt(c.pv.lastSpace); }
+    if(c.pv){ var pml = pmidBox.fs.querySelector('legend'); if(pml) pml.textContent = (c.oef || c.arf) ? 'High rails' : 'Mid-rails'; var ph = el(pmidBox.hint); if(ph) ph.textContent = 'Spaces are measured between the rails, from the top rail down. Last space, to the bottom rail: ' + fmt(c.pv.lastSpace); }
     if(state.kind === 'gate' && state.material === 'wood' && state.sides === 'single'){ var gh = el(gmidBox.hint); if(gh) gh.textContent = 'Spaces are measured between the rails, from the top rail down.' + (c.gml ? ' Last space, to the bottom rail: ' + fmt(c.gml.lastSpace) : '') + ' The brace covers the whole opening, cut to fit between the rails.'; }
     if(c.rl){ var rh = el(rmidBox.hint); if(rh) rh.textContent = 'Spaces are measured between the rails, from the top rail down. Last space, to the bottom rail: ' + fmt(c.rl.lastSpace); }
     el('lb_width').textContent = (state.kind === 'gate' || state.material === 'metal') ? 'Gate width' : 'Section width';
@@ -4967,9 +5018,10 @@ if(typeof document !== 'undefined'){
     el('showMovedL').style.display = (state.calloutMove && Object.keys(state.calloutMove).length) ? '' : 'none';
     el('warn').innerHTML = c.warn.map(function(w){ return '<p>'+w+'</p>'; }).join('');
     var mat = state.material === 'wood' ? 'Wood' : (state.material === 'metal' ? 'Metal' : 'PVC');
+    var ah = el('argHint'); if(ah) ah.textContent = c.arf ? ('Uses ' + c.arf.n + ' pickets, so the space comes out at ' + fmt(c.arf.gap) + '. The first and last sit flush against the posts.') : 'About 2 by default.'; if(document.activeElement !== arIn) arShow();
     var nh = el('njgHint'); if(nh) nh.textContent = (c.njg) ? ('Uses ' + c.njg.n + ' pickets, so the space comes out at ' + fmt(c.njg.gap) + '. The first and last sit flush against the side rails.') : 'About 1/2 by default.';
     var sum = c.metal ? ('Metal cantilever gate, ' + fmt(c.metal.G) + ' gate + ' + fmt(c.metal.B) + ' balance = ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' + c.metal.ng + ' gate and ' + c.metal.nb + ' balance braces' + (c.metal.wire ? ', black wire' : '') + (c.metal.sw ? ', swing gate opening ' + fmt(c.metal.sw.open) : '')) : mat + ' ' + (state.kind === 'gate' ? (c.ddg ? 'double drive gate' : 'gate') : 'fence section') + ', ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' +
-      (c.njg ? ('New Jersey gate, ' + c.njg.n + ' pickets, space ' + fmt(c.njg.gap) + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '')) : c.ilg ? 'Illinois gate, spindle pickets' + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : c.mode === 'tg' ? (c.oef ? 'Old English' : 'Oklahoma T&G' + (c.pocket ? ' pocket' : '') + ', ' + c.pk.name + ' boards') + (c.topper ? ', ' + ({CST:'closed spindle', OEN:'old English', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + ', ' + c.pk.name + ' pickets' + (c.mode === 'both' ? ', both sides' : ''));
+      (c.njg ? ('New Jersey gate, ' + c.njg.n + ' pickets, space ' + fmt(c.njg.gap) + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '')) : c.ilg ? 'Illinois gate, spindle pickets' + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : c.mode === 'tg' ? (c.arf ? 'Arkansas' : c.oef ? 'Old English' : 'Oklahoma T&G' + (c.pocket ? ' pocket' : '') + ', ' + c.pk.name + ' boards') + (c.topper ? ', ' + ({CST:'closed spindle', OEN:'old English', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + ', ' + c.pk.name + ' pickets' + (c.mode === 'both' ? ', both sides' : ''));
     el('summary').textContent = sum;
     el('printmeta').textContent = 'AII ' + sum + '  (' + new Date().toLocaleDateString() + ')';
     try{
