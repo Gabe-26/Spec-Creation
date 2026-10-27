@@ -722,9 +722,9 @@ function metalSheetSvg(c, info){      // the cantilever drawing sheet: front vie
   var ny = [570, 592, 614, 636, 658];
   lines.slice(0,5).forEach(function(t, i){ tx(i === 0 ? 108 : 20, ny[i], t, 12.5, INK, 'start', 'normal'); });
   tx(402, 567, 'SALE ORDER #:', 16, GREEN, 'start'); ln(543, 574, 648, 574, 1);
-  if(info.so) tx(546, 571, info.so, 14, INK, 'start', 'normal');
+  if(info.so) tx(595.5, 572, info.so, 18, INK, 'middle');
   tx(402, 611, 'DRAWN:', 16, GREEN, 'start'); ln(478, 617, 648, 617, 1);
-  tx(482, 614, info.drawn || '', 14, INK, 'start', 'normal');
+  tx(563, 615, info.drawn || '', 18, INK, 'middle');
   tx(410, 667, 'X', 20, INK, 'start'); ln(408, 672, 648, 672, 1);
   var copyTxt = info.copy === 'shop' ? 'SHOP COPY' : (info.copy === 'none' ? '' : 'CUSTOMER COPY');
   if(copyTxt) tx(789.5, 566, copyTxt, 21, GREEN, 'middle');
@@ -4019,9 +4019,9 @@ function sheetSvg(c, info){
   var ny = [570, 592, 614, 636, 658];
   lines.slice(0,5).forEach(function(t, i){ tx(i === 0 ? 108 : 20, ny[i], t, 12.5, INK, 'start', 'normal'); });
   tx(402, 567, 'SALE ORDER #:', 16, GREEN, 'start'); ln(543, 574, 648, 574, 1);
-  if(info.so) tx(546, 571, info.so, 14, INK, 'start', 'normal');
+  if(info.so) tx(595.5, 572, info.so, 18, INK, 'middle');
   tx(402, 611, 'DRAWN:', 16, GREEN, 'start'); ln(478, 617, 648, 617, 1);
-  tx(482, 614, info.drawn || '', 14, INK, 'start', 'normal');
+  tx(563, 615, info.drawn || '', 18, INK, 'middle');
   tx(410, 667, 'X', 20, INK, 'start'); ln(408, 672, 648, 672, 1);
   var copyTxt = info.copy === 'shop' ? 'SHOP COPY' : (info.copy === 'none' ? '' : 'CUSTOMER COPY');
   if(copyTxt) tx(789.5, 566, copyTxt, 21, GREEN, 'middle');
