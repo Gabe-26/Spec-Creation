@@ -1922,7 +1922,7 @@ function computePVCGate(s){
   if(NJP && !TPK && s.njHigh === 'on'){
     var nhH = isFinite(+s.njHighH) ? Math.max(0, +s.njHighH) : 11.5, nhS = (+s.njHighSize === 6) ? 6 : 3.5, nhT = zt - nhH, nhB = nhT - nhS;
     if(nhB - zo0 < GM.hrMinBelow){ warn.push('The high rail does not fit: with the high rail ' + fmt(nhH) + ' under the top rail there is only ' + fmt(Math.max(0, nhB - zo0)) + ' left below it (at least ' + fmt(GM.hrMinBelow) + ' is needed). It is left off.'); if(CR) xb = true; }
-    else { nhr = {zrt:nhT, zrb:nhB, hh:nhH, size:nhS}; zt = nhB; Hb = zt - zo0; }
+    else { nhr = {zrt:nhT, zrb:nhB, hh:nhH, size:nhS, zU:zt}; zt = nhB; Hb = zt - zo0; }
   }
   // Top of the posts: 1 above the gate. With the open spindle topper and the open spindle scallop topper the pickets stand above the top rail, so the posts rise to 1 above the tips of the pickets.
   var pkTop = H + up1;
@@ -2276,7 +2276,7 @@ function computePVCGate(s){
     var cMesh = CR.sw ? sMesh : crownMesh;
     if(CR.sw){ cOut = []; cIn = []; for(ck=0; ck<=60; ck++){ var cxs = xo0 + Wc*ck/60; cOut.push([cxs, CR.zO(cxs)]); cIn.push([cxs, CR.zI(cxs)]); } }
     parts.push({layer:'FRAME', kind:'frame', crown:true, name:(CR.name === 's-swept' ? 'S-swept rail' : (CR.flip ? 'Scallop rail' : 'Crown rail')), dir:'h', y0:cy0, y1:cy1, yBack:cy1, sideOrd:-1, pts:cOut.concat(cIn.slice().reverse()),
-      mesh:cMesh(CR, cy0, cy1, true), isoMeshes:[{mesh:cMesh(CR, cy0, cy1, false, true), so:((TPK || OEG) ? 0.9 : 0), y0:cy0}]});      // with the Old English grid the rail is painted after it, so it covers the tops of the uprights
+      mesh:cMesh(CR, cy0, cy1, true), isoMeshes:[{mesh:cMesh(CR, cy0, cy1, false, true), so:((TPK || OEG) ? 0.9 : (nhr ? 1.3 : 0)), y0:cy0}]});      // with the Old English grid the rail is painted after it, so it covers the tops of the uprights
     // 3 1/2 Traditional cap on each upright: the same cap as the PVC Oklahoma section, sized for the Gate Master. A 3/4 tall skirt (3 5/8 outside, 3 1/2 inside, open at
     // the bottom) slips over the upright, with a 3/4 tall pyramid on top. The caps sit on top of the overall height.
     if(!PKT){
@@ -4190,6 +4190,7 @@ function sheetSvg(c, info){
       o.push(dimWrap('h', agl, agLn(agA, agy - agS*0.7, agA, agy + agS*0.7) + agLn(agB, agy - agS*0.7, agB, agy + agS*0.7) + agLn(agB, agy, agB + agLen + agS*0.5, agy) + agLn(agTx + agTw + 1, agy, agA, agy) +
         arrowSvg(agA, agy, 1, 0, agLen, agHw, agK) + arrowSvg(agB, agy, -1, 0, agLen, agHw, agK) + richTextSvg(agTx, agy, shownLabel('h', agl), agS, agK, 'start', true)));
     }
+    if(c.njhr) o.push(dimV(BM.X(c.W + d.fs*8), BM.Y(c.njhr.zU), BM.Y(c.njhr.zrt), fmt(c.njhr.hh), bx1, bx1, stB, 1));      // New Jersey gate high rail: from the bottom of the top rail (the lowest point of a curved underside) to the top of the high rail
     if(c.ilg){      // Illinois gate: how much picket and cap shows above the top rail, and the frame under it
       o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(c.ilg.showZ1), BM.Y(c.ilg.showZ0), fmt(c.ilg.show), bx1, bx1, stB, 1));
       o.push(dimV(BM.X(c.W + d.fs*4), BM.Y(c.ilg.showZ0), BM.Y(0), fmt(c.ilg.showZ0), bx1, bx1, stB, 1));
