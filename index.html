@@ -334,7 +334,7 @@ function woodHex(p){ var c = woodRGB(p); return '#' + c.map(function(v){ return 
 var DEFAULTS = {
   material:'wood', kind:'gate', frame:'2x4', style:'lib_seed-gothic4',
   height:56, width:34, gap:2, top:6, bottom:7,
-  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', alFrame:'off', oeHr:'6', argap:2, latSp:2, latMode:'closest', supLeg:8, openShow:3.5, openShowE:4, openShowM:10, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', ddgTLay:'one', ddgShE:4, ddgShM:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, dimMove:{}, calloutMove:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
+  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', alFrame:'off', oeHr:'6', argap:2, latSp:2, latMode:'closest', sstyle:'std', wpaSize:'4', supLeg:8, openShow:3.5, openShowE:4, openShowM:10, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', ddgTLay:'one', ddgShE:4, ddgShM:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, dimMove:{}, calloutMove:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
   so:'', drawn:'', notes:'', copy:'customer', sheetDims:true, view:'work'
 };
 
@@ -400,6 +400,16 @@ var BUILTINS = [{
   minLen:3, note:'guessed shape',
   shape:function(H){ var w = 3.5, c = DOGEAR.cut; return [[0,0],[w,0],[w,H-c],[w-c,H],[c,H],[0,H-c]]; },
   topEdge:function(H){ return H - DOGEAR.cut; }
+}, {
+  // WPA-CUS (Pennsylvania section): a plain square-edge board, 3/4 x 3 1/2, square at the top and the bottom. Fixed, so it is not in the picket list.
+  key:'wpa', name:'Picket', builtin:true, material:'wood', w:3.5, t:0.75, stock:'1x4', L:null, minLen:3,
+  shape:function(H){ return [[0,0],[3.5,0],[3.5,H],[0,H]]; },
+  topEdge:function(H){ return H; }
+}, {
+  // WPA-CUS with the wider board: 3/4 x 5 1/2 (1x6), square edge
+  key:'wpa6', name:'Picket', builtin:true, material:'wood', w:5.5, t:0.75, stock:'1x6', L:null, minLen:3,
+  shape:function(H){ return [[0,0],[5.5,0],[5.5,H],[0,H]]; },
+  topEdge:function(H){ return H; }
 }];
 var RECS = [], LIB = [], HIDDEN = {dogear:true};
 function makeDef(rec){
@@ -421,7 +431,7 @@ function allPickets(){ return LIB.concat(BUILTINS); }
 // mode: 'tg' = only T&G boards (board coverage above 0); anything else lists everything, so T&G boards also work as pickets on single sided builds
 function listPickets(material, mode){
   return LIB.filter(function(d){ return d.material === material && (mode === 'tg' ? d.pitch > 0 : true); })
-    .concat(mode === 'tg' ? [] : BUILTINS.filter(function(d){ return !HIDDEN[d.key]; }));
+    .concat(mode === 'tg' ? [] : BUILTINS.filter(function(d){ return !HIDDEN[d.key] && d.key.indexOf('wpa') !== 0; }));
 }
 function picketDef(key){
   var l = allPickets();
@@ -756,7 +766,7 @@ function compute(s){
   if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'njg' || s.dstyle === 'oeg')) return computePVCGate(s);
   if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && s.dstyle === 'ilg') return computeILG(s);
   if(s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'wsl' || s.dstyle === 'wslg' || s.dstyle === 'wdl' || s.dstyle === 'wdlg')) return computeTG(s);
-  var f = FRAMES[s.frame], H = s.height, W = s.width, pk = picketDef(s.style);
+  var f = FRAMES[s.frame], H = s.height, W = s.width, pk = picketDef((s.sides === 'single' && s.kind === 'fence' && s.material === 'wood' && s.sstyle === 'wpa') ? (s.wpaSize === '6' ? 'wpa6' : 'wpa') : s.style);      // WPA-CUS: the fixed square-edge board
   var frameH = H - s.top - s.bottom;
   var z0 = s.bottom, z1 = s.bottom + frameH;
   var warn = [];
@@ -4449,6 +4459,8 @@ if(typeof document !== 'undefined'){
     {key:'topper', label:'Topper', choices:[['none','None'],['MDL','Mini diagonal lattice (MDL)'],['DDL','Deluxe diagonal lattice (DDL)'],['MSL','Mini square lattice (MSL)'],['DSL','Deluxe square lattice (DSL)'],['CST','Closed spindle topper'],['OST','Open spindle topper'],['OSS','Open spindle scallop topper'],['OSC','Open spindle crown topper'],['OEN','Old English topper']], when:function(){ return pvcGateOn() && !oegOn() && (state.ddg !== 'on' || !njgOn()); }},
     {key:'ddgTLay', label:'Topper on a double drive gate', choices:[['one','One arch over the pair'],['each','A topper on each leaf']], when:function(){ return pvcGateOn() && !njgOn() && !oegOn() && state.ddg === 'on' && state.topRail === 'none' && (state.topper === 'OSS' || state.topper === 'OSC'); }},
     {key:'wTopper', label:'Topper', choices:[['none','None'],['SQL','Square lattice topper'],['DGL','Diagonal lattice topper'],['CST','Closed spindle topper'],['OST','Open spindle topper'],['OSS','Open spindle scallop topper'],['OSC','Open spindle crown topper']], when:function(){ return woodGateTgOn(); }},
+    {key:'sstyle', label:'Single sided style', choices:[['std','Pickets'],['wpa','WPA-CUS','Pennsylvania Section']], when:function(){ return state.sides === 'single' && state.kind === 'fence' && state.material === 'wood'; }},
+    {key:'wpaSize', label:'Picket size', choices:[['4','1x4 (3/4" x 3 1/2")'],['6','1x6 (3/4" x 5 1/2")']], when:function(){ return wpaOn(); }},
     {key:'latMode', label:'Lattice spacing rounds to', choices:[['closest','Closest'],['under','At or under'],['over','At or over']], when:function(){ return sqlLatOn(); }},
     {key:'topRail', label:'Top rail', choices:[['none','None'],['CROWN','Crown rail'],['SCALLOP','Scallop rail'],['SSWEPT','S-swept']], when:function(){ return pvcGateOn() || ilgOn(); }},
     {key:'railSize', label:'Rail size', choices:[['small','Small rail (R50.09)'],['large','Large rail (R180.75)']], when:function(){ return (pvcGateOn() || ilgOn()) && (state.topRail === 'CROWN' || state.topRail === 'SCALLOP'); }},
@@ -4463,6 +4475,7 @@ if(typeof document !== 'undefined'){
   function tgFenceOn(){ return state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'oe' || state.dstyle === 'ar' || state.dstyle === 'wsl' || state.dstyle === 'wdl') && state.kind === 'fence'; }
   function dglOn(){ return state.sides === 'double' && (state.dstyle === 'wdl' || state.dstyle === 'wdlg') && state.material === 'wood' && ((state.dstyle === 'wdl') === (state.kind === 'fence')); }       // wood diagonal lattice section or gate (WDL-CUS, WDLG-CUS)
   function wslOn(){ return state.sides === 'double' && (state.dstyle === 'wsl' || state.dstyle === 'wdl') && state.kind === 'fence' && state.material === 'wood'; }       // wood square lattice section (WSL-CUS): the Oklahoma section with a square lattice in place of the T&G
+  function wpaOn(){ return state.sides === 'single' && state.kind === 'fence' && state.material === 'wood' && state.sstyle === 'wpa'; }       // wood single sided Pennsylvania section (WPA-CUS): the square-edge board
   function sqlLatOn(){ return (wslOn() && state.dstyle === 'wsl') || (wslgOn() && state.dstyle === 'wslg') || (woodGateTgOn() && state.wTopper === 'SQL'); }       // the square lattices (wood): the ones that round to a whole number of strips
   function wslgOn(){ return state.sides === 'double' && (state.dstyle === 'wslg' || state.dstyle === 'wdlg') && state.kind === 'gate' && state.material === 'wood'; }       // wood square lattice gate (WSLG-CUS): the wood Oklahoma gate frame with the lattice and corner supports
   function arOn(){ return state.sides === 'double' && state.dstyle === 'ar' && state.kind === 'fence' && state.material === 'pvc'; }       // PVC Arkansas section (2AR-CUS): 1 1/2 square pickets between 2 x 3 1/2 rails
@@ -4500,7 +4513,7 @@ if(typeof document !== 'undefined'){
     var fs = document.createElement('fieldset');
     var html = '<legend>'+label+'</legend><div class="seg" role="radiogroup">';
     choices.forEach(function(ch){
-      html += '<label><input type="radio" name="'+name+'" value="'+ch[0]+'"'+(cur===ch[0]?' checked':'')+'><span>'+ch[1]+'</span></label>';
+      html += '<label' + (ch[2] ? ' title="' + ch[2] + '"' : '') + '><input type="radio" name="'+name+'" value="'+ch[0]+'"'+(cur===ch[0]?' checked':'')+'><span>'+ch[1]+'</span></label>';      // a third entry is the name that shows when the button is hovered
     });
     fs.innerHTML = html + '</div>';
     host.appendChild(fs);
@@ -4525,7 +4538,7 @@ if(typeof document !== 'undefined'){
       if(g.key === 'wTopper' && (state.wTopper === 'OSS' || state.wTopper === 'OSC')){ state.openShowE = (state.wTopper === 'OSS') ? 10 : 4; state.openShowM = (state.wTopper === 'OSS') ? 4 : 10; if(state.topperH < 16) state.topperH = 16; }      // the standard show amounts for the wood crown and scallop; a 10 show needs a taller topper than the default, so 16 (my pick) is used when the height is shorter
       if(state.ddg === 'on' && (g.key === 'topper' || g.key === 'ddg') && (state.topper === 'OSS' || state.topper === 'OSC')){ state.ddgShE = (state.topper === 'OSS') ? 10 : 4; state.ddgShM = (state.topper === 'OSS') ? 4 : 10; }      // the standard show amounts for the crown and the scallop
       if(g.key === 'sides' || g.key === 'dstyle') state.count = null;
-      if(g.key === 'material' || g.key === 'sides' || g.key === 'dstyle') renderPickets();
+      if(g.key === 'material' || g.key === 'sides' || g.key === 'dstyle' || g.key === 'sstyle') renderPickets();
       update();
     });
   });
@@ -4679,11 +4692,12 @@ if(typeof document !== 'undefined'){
     '<p class="hint">Saves every option plus the height, width and space between pickets.</p>' +
     '<button type="button" class="linkish" data-pa="dl">Download presets</button> &nbsp; <button type="button" class="linkish" data-pa="ld">Load presets</button>' +
     '<input type="file" id="presetFile" accept=".json,application/json" style="display:none">';
-  segFs.dstyle.parentNode.insertBefore(presetFs, segFs.dstyle.nextSibling);      // right under the Double sided style row
-  function sameStyle(a, b){ return a.material === b.material && a.kind === b.kind && a.dstyle === b.dstyle; }      // a preset belongs to the build and style it was saved under
+  segFs.sstyle.parentNode.insertBefore(presetFs, segFs.sstyle.nextSibling);      // right under the style rows (the Double sided style row, then the Single sided style row)
+  function pStyle(d){ return (d.sides === 'single' && d.kind === 'fence' && d.material === 'wood' && d.sstyle === 'wpa') ? 'wpa' : 'std'; }
+  function sameStyle(a, b){ return a.material === b.material && a.kind === b.kind && a.dstyle === b.dstyle && pStyle(a) === pStyle(b); }      // a preset belongs to the build and style it was saved under
   function renderPresetBtns(){
     var host = presetFs.querySelector('#presetBtns'); if(!host) return;
-    var lg = presetFs.querySelector('legend'); if(lg) lg.textContent = (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wdl') ? 'WDL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wdlg') ? 'WDLG-CUS presets' : (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wsl') ? 'WSL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wslg') ? 'WSLG-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'ar') ? '2AR-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'oe') ? 'OE-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'oeg') ? 'OEG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'tg') ? 'OKG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'ilg') ? 'ILG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'njg') ? 'NJG-CUS presets' : 'Presets';
+    var lg = presetFs.querySelector('legend'); if(lg) lg.textContent = wpaOn() ? 'WPA-CUS presets' : (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wdl') ? 'WDL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wdlg') ? 'WDLG-CUS presets' : (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wsl') ? 'WSL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wslg') ? 'WSLG-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'ar') ? '2AR-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'oe') ? 'OE-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'oeg') ? 'OEG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'tg') ? 'OKG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'ilg') ? 'ILG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'njg') ? 'NJG-CUS presets' : 'Presets';
     var h = '';
     presets.forEach(function(q, i){
       if(!sameStyle(q.data, state)) return;
@@ -4858,7 +4872,7 @@ if(typeof document !== 'undefined'){
 
   function renderPickets(){
     if(state.material === 'metal'){ el('picketHost').innerHTML = ''; return; }      // metal has no pickets
-    if(ilgOn() || njgOn() || oeOn() || oegOn() || arOn() || wslOn() || wslgOn()){ el('picketHost').innerHTML = ''; return; }      // the Illinois gate has its own fixed 1 1/2 spindle pickets, nothing to pick
+    if(ilgOn() || njgOn() || oeOn() || oegOn() || arOn() || wslOn() || wslgOn() || wpaOn()){ el('picketHost').innerHTML = ''; return; }      // the Illinois gate has its own fixed 1 1/2 spindle pickets, nothing to pick
     var tgMode = state.sides === 'double' && state.dstyle === 'tg';
     var list = listPickets(state.material, tgMode ? 'tg' : undefined);
     if(!list.some(function(d){ return d.key === state.style; })) state.style = list.length ? list[0].key : picketDef('').key;
@@ -4900,6 +4914,7 @@ if(typeof document !== 'undefined'){
         '<button type="button" data-act="flip">Flip top/bottom</button><button type="button" data-act="del">Remove</button></div>';
     });
     BUILTINS.forEach(function(d){
+      if(d.key.indexOf('wpa') === 0) return;      // the Pennsylvania pickets are fixed, not a library picket
       h += '<div class="lrow" data-key="'+esc(d.key)+'">'+thumb(d)+'<div class="lmain"><b>'+esc(d.name)+'</b><small>Built in, '+esc(sizeText(d))+'. A guess, not one of your shop pickets.</small></div>'+
         '<button type="button" data-act="toggle">'+(HIDDEN[d.key] ? 'Show' : 'Hide')+'</button></div>';
     });
@@ -5042,7 +5057,7 @@ if(typeof document !== 'undefined'){
   function syncUI(){
     var tgMode = state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'oe' || state.dstyle === 'oeg' || state.dstyle === 'ar' || state.dstyle === 'wsl' || state.dstyle === 'wslg' || state.dstyle === 'wdl' || state.dstyle === 'wdlg'), tgFence = tgMode && state.kind === 'fence';
     SEGS.forEach(function(g){ segFs[g.key].style.display = (!g.when || g.when()) ? '' : 'none'; });      // groups without a rule always show (Sides comes back after Metal hid it)
-    if(presetFs) presetFs.style.display = (state.sides === 'double' && state.material !== 'metal') ? '' : 'none';      // presets are offered once Double sided is chosen
+    if(presetFs) presetFs.style.display = ((state.sides === 'double' && state.material !== 'metal') || wpaOn()) ? '' : 'none';      // presets are offered once Double sided is chosen
     // a PVC gate's Oklahoma style is the code OKG-CUS with its description under it; the other builds keep the plain name
     var tgIn = segFs.dstyle && segFs.dstyle.querySelector('input[value="tg"]');
     if(tgIn && tgIn.nextElementSibling){
@@ -5177,7 +5192,7 @@ if(typeof document !== 'undefined'){
     var ah = el('argHint'); if(ah) ah.textContent = c.arf ? ('Uses ' + c.arf.n + ' pickets, so the space comes out at ' + fmt(c.arf.gap) + '. The first and last sit flush against the posts.') : 'About 2 by default.'; if(document.activeElement !== arIn) arShow();
     var nh = el('njgHint'); if(nh) nh.textContent = (c.njg) ? ('Uses ' + c.njg.n + ' pickets, so the space comes out at ' + fmt(c.njg.gap) + '. The first and last sit flush against the side rails.') : 'About 1/2 by default.';
     var sum = c.metal ? ('Metal cantilever gate, ' + fmt(c.metal.G) + ' gate + ' + fmt(c.metal.B) + ' balance = ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' + c.metal.ng + ' gate and ' + c.metal.nb + ' balance braces' + (c.metal.wire ? ', black wire' : '') + (c.metal.sw ? ', swing gate opening ' + fmt(c.metal.sw.open) : '')) : mat + ' ' + (state.kind === 'gate' ? (c.ddg ? 'double drive gate' : 'gate') : 'fence section') + ', ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' +
-      (c.njg ? ('New Jersey gate, ' + c.njg.n + ' pickets, space ' + fmt(c.njg.gap) + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '')) : c.ilg ? 'Illinois gate, spindle pickets' + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : c.mode === 'tg' ? (c.arf ? 'Arkansas' : c.oef ? 'Old English' : c.wsl ? (c.wsl.diag ? (c.wsl.sup ? 'Diagonal lattice gate, ' + fmt(c.wsl.gapD) + ' openings, ' + fmt(c.wsl.sup.leg) + ' supports' : 'Diagonal lattice section, ' + fmt(c.wsl.gapD) + ' openings') : (c.wsl.sup ? 'Square lattice gate, ' + c.wsl.nV + ' slats, ' + fmt(c.wsl.sup.leg) + ' supports' : 'Square lattice section, ' + c.wsl.nV + ' slats')) : 'Oklahoma T&G' + (c.pocket ? ' pocket' : '') + ', ' + c.pk.name + ' boards') + (c.topper ? ', ' + ({CST:'closed spindle', OEN:'old English', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + ', ' + c.pk.name + ' pickets' + (c.mode === 'both' ? ', both sides' : ''));
+      (c.njg ? ('New Jersey gate, ' + c.njg.n + ' pickets, space ' + fmt(c.njg.gap) + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '')) : c.ilg ? 'Illinois gate, spindle pickets' + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : c.mode === 'tg' ? (c.arf ? 'Arkansas' : c.oef ? 'Old English' : c.wsl ? (c.wsl.diag ? (c.wsl.sup ? 'Diagonal lattice gate, ' + fmt(c.wsl.gapD) + ' openings, ' + fmt(c.wsl.sup.leg) + ' supports' : 'Diagonal lattice section, ' + fmt(c.wsl.gapD) + ' openings') : (c.wsl.sup ? 'Square lattice gate, ' + c.wsl.nV + ' slats, ' + fmt(c.wsl.sup.leg) + ' supports' : 'Square lattice section, ' + c.wsl.nV + ' slats')) : 'Oklahoma T&G' + (c.pocket ? ' pocket' : '') + ', ' + c.pk.name + ' boards') + (c.topper ? ', ' + ({CST:'closed spindle', OEN:'old English', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + (c.pk.key.indexOf('wpa') === 0 ? ', Pennsylvania section, ' + (c.pk.key === 'wpa6' ? '1x6' : '1x4') + ' pickets' : ', ' + c.pk.name + ' pickets') + (c.mode === 'both' ? ', both sides' : ''));
     el('summary').textContent = sum;
     el('printmeta').textContent = 'AII ' + sum + '  (' + new Date().toLocaleDateString() + ')';
     try{
