@@ -327,14 +327,28 @@ function woodRGB(p){
   else if(kind === 'cap') fam = [[174,124,80],[162,114,72],[182,132,86]];
   else if(p.layer === 'BRACE') fam = [[168,118,74],[158,108,66],[176,126,82]];
   else fam = [[194,142,92],[182,128,82],[202,154,102],[174,120,76],[198,148,98]];
-  var b = fam[h % fam.length], j = (((h >>> 8) % 13) - 6)/100;
+  var b = fam[h % fam.length], j = (((h >>> 8) % 5) - 2)*0.03;      // five shade steps, so the grain patterns stay few
   return b.map(function(v){ return Math.max(0, Math.min(255, Math.round(v*(1 + j)))); });
 }
+var WPAT = null;      // grain patterns used on the sheet being drawn: one opaque pattern per wood shade (opaque, so the PDF stays small)
+function mixHex(a, b, f){ var i, o = '#', x, y; for(i=1;i<7;i+=2){ x = parseInt(a.substr(i,2),16); y = parseInt(b.substr(i,2),16); var v = Math.round(x + (y - x)*f); o += (v < 16 ? '0' : '') + v.toString(16); } return o; }
+function woodPatUrl(hex, vert, kind){
+  var key = 'wp' + hex.slice(1) + (vert ? 'v' : 'h') + (kind === 'work' ? 'w' : 's');
+  if(WPAT && !WPAT[key]){
+    var k = kind === 'work' ? 0.2264 : 1, dk = mixHex(hex, '#5a3a1c', 0.22), lt = mixHex(hex, '#ffffff', 0.14), W_ = 5.3*k, L_ = 37*k, f = function(v){ return (v*k).toFixed(3); };
+    var d1 = vert ? 'M' + f(0.9) + ' 0V' + f(37) + 'M' + f(2.6) + ' 0V' + f(37) + 'M' + f(4.3) + ' 0V' + f(22) : 'M0 ' + f(0.9) + 'H' + f(37) + 'M0 ' + f(2.6) + 'H' + f(37) + 'M0 ' + f(4.3) + 'H' + f(22);
+    var d2 = vert ? 'M' + f(1.7) + ' ' + f(6) + 'V' + f(30) : 'M' + f(6) + ' ' + f(1.7) + 'H' + f(30);
+    var pw = vert ? W_ : L_, ph = vert ? L_ : W_;
+    WPAT[key] = '<pattern id="' + key + '" width="' + pw.toFixed(3) + '" height="' + ph.toFixed(3) + '" patternUnits="userSpaceOnUse"><rect width="' + pw.toFixed(3) + '" height="' + ph.toFixed(3) + '" fill="' + hex + '"/><path d="' + d1 + '" stroke="' + dk + '" stroke-width="' + (0.3*k).toFixed(3) + '"/><path d="' + d2 + '" stroke="' + lt + '" stroke-width="' + (0.4*k).toFixed(3) + '"/></pattern>';
+  }
+  return 'url(#' + key + ')';
+}
+function woodPatDefs(){ var o = WPAT ? Object.keys(WPAT).map(function(k){ return WPAT[k]; }).join('') : ''; WPAT = null; return o ? '<defs>' + o + '</defs>' : ''; }
 function woodHex(p){ var c = woodRGB(p); return '#' + c.map(function(v){ return (v < 16 ? '0' : '') + v.toString(16); }).join(''); }
 var DEFAULTS = {
   material:'wood', kind:'gate', frame:'2x4', style:'lib_seed-gothic4',
   height:56, width:34, gap:2, top:6, bottom:7,
-  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', alFrame:'off', oeHr:'6', argap:2, latSp:2, latMode:'closest', sstyle:'std', wpaSize:'4', supLeg:8, openShow:3.5, openShowE:4, openShowM:10, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', ddgTLay:'one', ddgShE:4, ddgShM:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, dimMove:{}, calloutMove:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
+  hinge:'left', brace:'x', topper:'none', topRail:'none', wTopper:'none', alFrame:'off', oeHr:'6', argap:2, latSp:2, latMode:'closest', sstyle:'std', wpaSize:'4', njHigh:'off', njHighSize:'3.5', njHighH:11.5, supLeg:8, openShow:3.5, openShowE:4, openShowM:10, topperH:12.5, ilShow:10, njgap:0.5, ilHigh:'off', ilHighH:11.5, ddg:'off', sRad:'24', ddgRise:24, railSize:'small', ddgLay:'one', ddgTLay:'one', ddgShE:4, ddgShM:10, pframe:'gm', ppost:'5', mbuild:'cantilever', mbal:'half', mbalv:0, mflip:'right', mwire:'off', mswing:'off', mswv:36, mgb:3, mbb:2, gmids:[], sideOff:false, frontOff:false, backOff:false, hiddenDims:[], dimText:{}, dimMove:{}, calloutMove:{}, count:null, sides:'single', dstyle:'both', align:'aligned', fascia:'1x4', back:'1x4', mids:[], fmids:[], rmids:[], midrail:'on', pmids:[],
   so:'', drawn:'', notes:'', copy:'customer', sheetDims:true, view:'work'
 };
 
@@ -753,6 +767,7 @@ function metalSheetSvg(c, info){      // the cantilever drawing sheet: front vie
   var copyTxt = info.copy === 'shop' ? 'SHOP COPY' : (info.copy === 'none' ? '' : 'CUSTOMER COPY');
   if(copyTxt) tx(789.5, 566, copyTxt, 21, GREEN, 'middle');
   if(info.logo) o.push('<image href="'+info.logo+'" x="666" y="577" width="248" height="104" preserveAspectRatio="xMidYMid meet"/>');
+  o.push(woodPatDefs());
   o.push('</svg>');
   return o.join('');
 }
@@ -1899,8 +1914,16 @@ function computePVCGate(s){
   var topRH = (PKT && TPK) ? topRH0 : Gz;      // the height of the top rail: with a topper a pocket gate's top rail is a 2 x 3 1/2 (the bottom rail stays a 2x6)
   if(PKT && TPK) zo1 = H - topRH;
   if(PKT) xb = true;      // a pocket gate always gets the X-brace, whatever the width
-  if(CR && !TPK) xb = true;      // a crown or scallop rail gate with no topper always gets the X-brace, whatever the width; with a topper (a 2x6 high-rail) the normal width rule applies
+  if(CR && !TPK && !(NJP && s.njHigh === 'on')) xb = true;      // (a New Jersey gate with a high rail follows the normal width rule) a crown or scallop rail gate with no topper always gets the X-brace, whatever the width; with a topper (a 2x6 high-rail) the normal width rule applies
   var isOpen = TPK === 'OST' || TPK === 'OSS' || TPK === 'OSC', isOE = TPK === 'OEN', isSp = TPK === 'CST' || isOpen, zt = TPK ? zrb : (CR ? CR.zInEnd : zo1), Hb = zt - zo0;      // isSp: closed spindle topper, where the top of the frame is a Gate Rail (no slot) instead of a Gate Master
+  // High rail on the New Jersey gate (no topper): a plain hollow 2 x 3 1/2 (3 1/2 vertical) or 2 x 6 rail across between the side rails, the pickets going through 15/16 x 3 1/16 cutouts.
+  // Its height is typed: from the bottom of the top rail (the lowest point of a curved underside) to the top of the high rail. The supports or the X-brace only fill the space under it.
+  var nhr = null, nhrPart = null;
+  if(NJP && !TPK && s.njHigh === 'on'){
+    var nhH = isFinite(+s.njHighH) ? Math.max(0, +s.njHighH) : 11.5, nhS = (+s.njHighSize === 6) ? 6 : 3.5, nhT = zt - nhH, nhB = nhT - nhS;
+    if(nhB - zo0 < GM.hrMinBelow){ warn.push('The high rail does not fit: with the high rail ' + fmt(nhH) + ' under the top rail there is only ' + fmt(Math.max(0, nhB - zo0)) + ' left below it (at least ' + fmt(GM.hrMinBelow) + ' is needed). It is left off.'); if(CR) xb = true; }
+    else { nhr = {zrt:nhT, zrb:nhB, hh:nhH, size:nhS}; zt = nhB; Hb = zt - zo0; }
+  }
   // Top of the posts: 1 above the gate. With the open spindle topper and the open spindle scallop topper the pickets stand above the top rail, so the posts rise to 1 above the tips of the pickets.
   var pkTop = H + up1;
   if(PKT && TPK && wantOpen && (TPK === 'OST' || TPK === 'OSS')) pkTop = Hov + 1;
@@ -2033,7 +2056,7 @@ function computePVCGate(s){
       plugXs.forEach(function(x){ plugs.push([x, (b[1] + b[2])/2]); });
     });
     cuts.push({part:'Supports', qty:2, stock:fmt(GM.bt) + ' x ' + fmt(GM.bw) + ' hollow', length:Wc, note:'Top and bottom, against the back of the T&G'});
-  } else if(CR && CR.sw && !TPK){
+  } else if(CR && CR.sw && !TPK && !nhr){
     // S-swept rail: the uprights are different heights, so each diagonal lands on the underside of the rail at its own upright
     var sbg = sBraceGeom(xo0, xo1, zo0, CR), sbi;
     parts.push({layer:'BRACE', kind:'brace', name:'X-brace full', dir:'d', piece:'full', y0:by0, y1:by1, pts:sbg.F.poly});
@@ -2293,6 +2316,12 @@ function computePVCGate(s){
   // loses its groove, both cut to the same width.
   var n = nT, rip = eE < pitch - 0.005, lastW = eE;
   var tgZ = PKT ? GM.railUp : GM.tgIn, bz0 = zo0 - tgZ, bz1 = (CR && !TPK) ? Math.max(CR.zT(W/2), CR.zT(xo0), CR.zT(xo1)) : (TPK ? zrb + GM.railUp : zo1 + tgZ);      // with a topper the top of the T&G goes up into the channel of the high-rail
+  if(nhr){
+    var nry0 = yc - GM.railT/2, nry1 = yc + GM.railT/2, nld = (nhr.size === 6) ? railLoops(nry0, nhr.zrb, nhr.zrt, true) : {outer:rect(nry0, nhr.zrb, nry1, nhr.zrt), holes:[rect(nry0 + GM.wall, nhr.zrb + GM.wall, nry1 - GM.wall, nhr.zrt - GM.wall)]};
+    nhrPart = {layer:'FRAME', kind:'rail', name:'High rail', dir:'h', sord:1, sideOrd:-0.5, noSide:true, y0:nry0, y1:nry1, yBack:nry1 + 0.25, pts:rect(xo0, nhr.zrb, xo1, nhr.zrt), loops:nld, x0:xo0, x1:xo1, isoBodies:null, slotTops:[]};
+    parts.push(nhrPart);
+    cuts.push({part:'High rail', qty:1, stock:'2 x ' + fmt(nhr.size), length:Wc, note:'Butts the side rails. ' + fmt(15/16) + ' x ' + fmt(3 + 1/16) + ' cutouts for the pickets, which go through.'});
+  }
   if(NJP){
     var njY0 = ty0, njY1 = ty0 + tT, njWl = GM.spWall, njVis = Math.max(0, Math.min(0.1, njGapV/4)), pj;
     for(pj=0; pj<njN; pj++){
@@ -2301,6 +2330,11 @@ function computePVCGate(s){
       var njPk = {layer:'PICKET', name:'Picket ' + (pj + 1), y0:njY0, y1:njY1, noSide:true, pts:((CR && !TPK) ? crownBoardPts(qx0, qx1, bz0, CR) : rect(qx0, bz0, qx1, bz1)), prof:njO, loops:{outer:njO, holes:[njH]}};
       njPk.isoZ = [zo0, Math.max.apply(null, njPk.pts.map(function(q){ return q[1]; }))];      // the isometric draws only the part above the bottom rail; the part inside the rail is hidden
       if(CR && !TPK){ njPk.zTop = CR.zT; njPk.stepZ = [bz0, Math.min(CR.zT(qx0), CR.zT(qx1), (CR.xc > qx0 && CR.xc < qx1) ? CR.zT(CR.xc) : 1e9)]; }
+      if(nhrPart){      // the picket goes through the high rail: the part under the rail is painted before it, the part above after it
+        var njTopZ = njPk.isoZ[1];
+        njPk.isoSegs = [{z:[zo0, nhr.zrt], so:0}, {z:[nhr.zrt, njTopZ], so:1.2}];
+        nhrPart.slotTops.push({x0:Math.max(xo0, qx0 - njVis), x1:Math.min(xo1, qx1 + njVis), z:nhr.zrt, y0:njY0 - njVis, y1:njY1 + njVis, so:1.1});      // the cutout in the top of the high rail, drawn a little wider so it reads (a drawing effect)
+      }
       pickets.push(njPk);
       if(njVis > 0 && njRails['Gate Master bottom']) njRails['Gate Master bottom'].slotTops.push({x0:Math.max(xo0, qx0 - njVis), x1:Math.min(xo1, qx1 + njVis), z:zo0, y0:njY0 - njVis, y1:njY1 + njVis, so:-0.5});      // the cutout in the top of the bottom Gate Rail, drawn a little wider so it reads (a drawing effect)
     }
@@ -2366,7 +2400,7 @@ function computePVCGate(s){
     inner:null, Wc:Wc,
     depth:{y0:0, y1:Dp + (ALU ? ALT : 0)}, alu:aluInfo,
     tg:{pitch:pitch, lastW:lastW, rip:rip, spaces:[], lastSpace:0, midC:[], spaceRanges:[], fSpaces:[], fLastSpace:0, fMidC:[]},
-    njg:(NJP ? {n:njN, gap:njGapV, xs:njXs, z0:zo0, z1:zt} : null), oeg:OEG, oef:(OEG ? oegInfo : null), pv:(OEG ? {lastSpace:oegInfo.lastSpace, hm:oegInfo.hm, mids:oegInfo.midZ, rh:GM.w} : undefined),
+    njg:(NJP ? {n:njN, gap:njGapV, xs:njXs, z0:zo0, z1:zt} : null), njhr:nhr, oeg:OEG, oef:(OEG ? oegInfo : null), pv:(OEG ? {lastSpace:oegInfo.lastSpace, hm:oegInfo.hm, mids:oegInfo.midZ, rh:GM.w} : undefined),
     tgNote: OEG ? ('Old English, ' + oegInfo.nUp + ' uprights, ' + oegInfo.nBar + ' bars') : NJ ? (njN + ' pickets, space ' + fmt(njGapV) + ', ' + plugs.length + ' plugs') : (n + ' T&G boards' + (rip ? ', first and last cut to ' + fmt(lastW) : '') + ', ' + plugs.length + ' plugs')
   };
 }
@@ -3008,12 +3042,11 @@ function svgString(c){
   var out = [];
   var vw = v.x1 - v.x0, vh = v.z1 - v.z0;
   out.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+v.x0+' '+(-v.z1)+' '+vw+' '+vh+'" font-family="Arial, Helvetica, sans-serif">');
+  WPAT = {};
   out.push('<defs>');
   out.push('<pattern id="gv" width="0.9" height="6" patternUnits="userSpaceOnUse"><rect width="0.9" height="6" fill="#dcbc92"/><path d="M0.25 0V6M0.7 0V6" stroke="#c9a173" stroke-width="0.07"/></pattern>');
   out.push('<pattern id="gh" width="6" height="0.9" patternUnits="userSpaceOnUse"><rect width="6" height="0.9" fill="#bf935f"/><path d="M0 0.25H6M0 0.7H6" stroke="#a97c4a" stroke-width="0.07"/></pattern>');
   out.push('<pattern id="gs" width="0.9" height="6" patternUnits="userSpaceOnUse"><rect width="0.9" height="6" fill="#bf935f"/><path d="M0.25 0V6M0.7 0V6" stroke="#a97c4a" stroke-width="0.07"/></pattern>');
-  out.push('<pattern id="gvT" width="1.2" height="8" patternUnits="userSpaceOnUse"><path d="M0.2 0V8M0.65 0V8M1 0V5" stroke="#5a3a1c" stroke-opacity=".22" stroke-width="0.06"/><path d="M0.45 1.5V6.5" stroke="#fff" stroke-opacity=".14" stroke-width="0.09"/></pattern>');
-  out.push('<pattern id="ghT" width="8" height="1.2" patternUnits="userSpaceOnUse"><path d="M0 0.2H8M0 0.65H8M0 1H5" stroke="#5a3a1c" stroke-opacity=".22" stroke-width="0.06"/><path d="M1.5 0.45H6.5" stroke="#fff" stroke-opacity=".14" stroke-width="0.09"/></pattern>');
   out.push('<pattern id="mwv" width="2.8" height="2.8" patternUnits="userSpaceOnUse"><path d="M0 0L2.8 2.8M2.8 0L0 2.8" stroke="#1c1c1c" stroke-width="0.32"/><g fill="#1c1c1c"><circle cx="0" cy="0" r="0.24"/><circle cx="2.8" cy="0" r="0.24"/><circle cx="0" cy="2.8" r="0.24"/><circle cx="2.8" cy="2.8" r="0.24"/><circle cx="1.4" cy="1.4" r="0.24"/></g></pattern>');
   out.push('</defs>');
   out.push('<rect x="'+v.x0+'" y="'+(-v.z1)+'" width="'+vw+'" height="'+vh+'" fill="#e9ece7"/>');
@@ -3061,11 +3094,10 @@ function svgString(c){
     var mpg = p.mfill ? mcPipe(p, function(x){ return x; }, function(z){ return -z; }, 1, 'mpw' + (pgW++)) : null;
     if(mpg){ out.push(mpg.def); fill = mpg.fill; }
     else if(p.mfill) fill = (p.mfill === 'wire' ? 'url(#mwv)' : p.mfill);
-    else if(p.layer === 'PICKET') fill = wood ? woodHex(p) : (p.vg ? '#cbccc6' : '#fdfdfb');      // PVC T&G boards are a light gray so they read as boards, not blank white
+    else if(p.layer === 'PICKET') fill = wood ? woodPatUrl(woodHex(p), true, 'work') : (p.vg ? '#cbccc6' : '#fdfdfb');      // PVC T&G boards are a light gray so they read as boards, not blank white
     else if(p.layer === 'BRACE') fill = wood ? woodHex(p) : '#dfe2dd';
-    else fill = wood ? woodHex(p) : (p.kind === 'cap' ? '#b9bdb6' : (p.kind === 'alu' ? '#b4bcc4' : (p.kind === 'plug' ? '#f4f4f0' : (p.kind === 'oebar' ? '#fdfdfb' : '#cdd2cb'))));
-    poly(p, fill, mpg ? 0.015 : (p.layer === 'PICKET' ? 0.07 : 0.06), null);
-    if(wood && !mpg && !p.mfill && !p.holes && !p.diagLat) out.push('<polygon points="' + p.pts.map(function(q){ return q[0].toFixed(3) + ',' + (-q[1]).toFixed(3); }).join(' ') + '" fill="' + ((p.layer !== 'PICKET' && p.dir !== 'v') ? 'url(#ghT)' : 'url(#gvT)') + '"/>');      // the grain lines go over the board's own shade
+    else fill = wood ? ((p.diagLat || p.dir === 'd') ? woodHex(p) : woodPatUrl(woodHex(p), p.dir === 'v', 'work')) : (p.kind === 'cap' ? '#b9bdb6' : (p.kind === 'alu' ? '#b4bcc4' : (p.kind === 'plug' ? '#f4f4f0' : (p.kind === 'oebar' ? '#fdfdfb' : '#cdd2cb'))));
+    poly(p, fill, mpg ? 0.015 : (p.layer === 'PICKET' ? 0.07 : 0.06), wood ? woodHex(p) : null);
     if(p.vg) vgroove(p);
     if(p.curves) p.curves.forEach(function(pl){
       out.push('<polyline points="' + pl.map(function(q){ return n3(q[0]) + ',' + n3(-q[1]); }).join(' ') + '" fill="none" stroke="#2a2f33" stroke-width="' + (fs*0.03).toFixed(3) + '"/>');
@@ -3083,6 +3115,7 @@ function svgString(c){
   d.notes.forEach(function(t){
     out.push(richTextSvg(t.x, -t.z, t.s, fs, '#1c2125', 'middle', true));
   });
+  out.push(woodPatDefs());
   out.push('</svg>');
   return out.join('');
 }
@@ -3929,10 +3962,9 @@ function sheetSvg(c, info){
     if(p.kind === 'plug' && !wood) return {base:'#f4f4f0'};
     if(!wood && p.kind === 'oebar') return {base:'#f6f6f2'};      // the Old English bars match the uprights
     if(!wood) return p.layer === 'PICKET' ? {base:(p.vg ? '#cbccc6' : '#f6f6f2')} : (p.layer === 'BRACE' ? {base:'#e4e4de'} : {base:'#dcdcd5'});
-    if(p.diagLat) return {base:woodHex(p)};      // diagonal strips: the shade only, the straight grain lines would run across them
-    if(p.layer === 'PICKET') return {base:woodHex(p), pat:'url(#sgvT)'};
-    if(p.layer === 'BRACE') return {base:woodHex(p), pat:'url(#sghT)'};
-    return {base:woodHex(p), pat: p.dir === 'v' ? 'url(#sgvT)' : 'url(#sghT)'};
+    var wx = woodHex(p);
+    if(p.diagLat || p.layer === 'BRACE') return {base:wx};      // diagonal strips: the shade only, the straight grain lines would run across them
+    return {base:wx, pat:woodPatUrl(wx, p.layer === 'PICKET' || p.dir === 'v', 'sheet')};
   }
   function polyP(p, M, mirror, sw){
     if(p.lat){
@@ -4015,6 +4047,7 @@ function sheetSvg(c, info){
     if(c.crown) addG('crown', fmt(GM.crownT)+' X '+fmt(GM.crownRo - GM.crownRi), ((c.crown.big ? 'LG ' : '') + (c.crown.name === 'scallop' ? 'SCALLOP RAIL' : (c.crown.name === 's-swept' ? 'S-SWEPT RAIL' : 'CROWN RAIL'))), 'front', (c.ddg ? [0.2, 0.35, 0.65, 0.8] : [0.3, 0.5, 0.7]).map(function(fx){ var xx = gW*fx; return [xx, (c.crown.zO(xx) + c.crown.zI(xx))/2]; }), 270);
     if(c.pocket){ addG('cap', fmt(c.pocket.post), 'TRADITIONAL CAP', 'front', (c.ddg ? c.ddg.capPts : [[c.pocket.post/2, c.pocket.top + GM.capUp/2],[gW - c.pocket.post/2, c.pocket.top + GM.capUp/2]]), 270); tgRows[tgRows.length-1].alsoBack = true; }
     else if(c.crown){ addG('cap', fmt(GM.w), 'TRADITIONAL CAP', 'front', (c.ddg ? c.ddg.capPts : [[GM.w/2, gH + GM.capUp/2],[gW - GM.w/2, gH + GM.capUp/2]]), 270); tgRows[tgRows.length-1].alsoBack = true; }
+    if(c.njhr) addG('rail', fmt(GM.railT)+' X '+fmt(c.njhr.size), 'HIGH RAIL', 'front', (c.ddg ? [c.ddg.Wl*0.3, c.ddg.Wl*0.7, c.ddg.dx + c.ddg.Wl*0.3, c.ddg.dx + c.ddg.Wl*0.7] : [gW*0.22, gW*0.5, gW*0.78]).map(function(x){ return [x, (c.njhr.zrb + c.njhr.zrt)/2]; }), 180);
     if(c.topper){
       var tdx = c.ddg ? [c.ddg.Wl*0.3, c.ddg.Wl*0.7, c.ddg.dx + c.ddg.Wl*0.3, c.ddg.dx + c.ddg.Wl*0.7] : null;      // double drive gate: the callouts point into the leaves, not the gap between them
       var tdp = function(fr, z){ return (tdx || fr.map(function(f){ return gW*f; })).map(function(x){ return [x, z]; }); };
@@ -4073,12 +4106,11 @@ function sheetSvg(c, info){
   var stF = {size:9.5, color:DIM_RED, sw:0.6, obs:[]}, stB = {size:9.5, color:DIM_RED, sw:0.6, obs:[]};
 
   o.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 925 690" font-family="Arial, Helvetica, sans-serif">');
+  WPAT = {};
   o.push('<defs>' +
     '<pattern id="sgv" width="3.4" height="30" patternUnits="userSpaceOnUse"><rect width="3.4" height="30" fill="#dcbc92"/><path d="M0.9 0V30M2.6 0V30" stroke="#c9a173" stroke-width="0.3"/></pattern>' +
     '<pattern id="sgh" width="30" height="3.4" patternUnits="userSpaceOnUse"><rect width="30" height="3.4" fill="#bf935f"/><path d="M0 0.9H30M0 2.6H30" stroke="#a97c4a" stroke-width="0.3"/></pattern>' +
     '<pattern id="sgs" width="3.4" height="30" patternUnits="userSpaceOnUse"><rect width="3.4" height="30" fill="#bf935f"/><path d="M0.9 0V30M2.6 0V30" stroke="#a97c4a" stroke-width="0.3"/></pattern>' +
-    '<pattern id="sgvT" width="5.3" height="37" patternUnits="userSpaceOnUse"><path d="M0.9 0V37M2.6 0V37M4.3 0V22" stroke="#5a3a1c" stroke-opacity=".22" stroke-width="0.3"/><path d="M1.7 6V30" stroke="#fff" stroke-opacity=".14" stroke-width="0.4"/></pattern>' +
-    '<pattern id="sghT" width="37" height="5.3" patternUnits="userSpaceOnUse"><path d="M0 0.9H37M0 2.6H37M0 4.3H22" stroke="#5a3a1c" stroke-opacity=".22" stroke-width="0.3"/><path d="M6 1.7H30" stroke="#fff" stroke-opacity=".14" stroke-width="0.4"/></pattern>' +
     '</defs>');
   o.push('<rect x="0" y="0" width="925" height="690" fill="#fff"/>');
   // sheet frame and cell lines
@@ -4465,6 +4497,8 @@ if(typeof document !== 'undefined'){
     {key:'topRail', label:'Top rail', choices:[['none','None'],['CROWN','Crown rail'],['SCALLOP','Scallop rail'],['SSWEPT','S-swept']], when:function(){ return pvcGateOn() || ilgOn(); }},
     {key:'railSize', label:'Rail size', choices:[['small','Small rail (R50.09)'],['large','Large rail (R180.75)']], when:function(){ return (pvcGateOn() || ilgOn()) && (state.topRail === 'CROWN' || state.topRail === 'SCALLOP'); }},
     {key:'ddgLay', label:'Rail on a double drive gate', choices:[['one','One arch over the pair'],['each','A rail on each leaf']], when:function(){ return (pvcGateOn() || ilgOn()) && state.ddg === 'on' && (state.topRail === 'CROWN' || state.topRail === 'SCALLOP'); }},
+    {key:'njHigh', label:'High rail', choices:[['off','Off'],['on','On']], when:function(){ return njHrOk(); }},
+    {key:'njHighSize', label:'High rail size', choices:[['3.5','2 x 3 1/2'],['6','2 x 6']], when:function(){ return njHrOk() && state.njHigh === 'on'; }},
     {key:'ilHigh', label:'High rail', choices:[['off','Off'],['on','On']], when:function(){ return ilgOn(); }},
     {key:'sRad', label:'S-swept rail', choices:[['24','24" drop (R98.04)'],['12','12" drop (R187.08)']], when:function(){ return (pvcGateOn() || ilgOn()) && state.ddg === 'on' && state.topRail === 'SSWEPT'; }},
     {key:'frame', label:'Framing', choices:[['2x3','2x3'],['2x4','2x4'],['2x6','2x6'],['dowel','2x3 Dowel Rail'],['dowel4','2x4 Dowel Rail']], when:function(){ return !tgFenceOn() && !pvcGateOn() && !ilgOn(); }},
@@ -4475,6 +4509,7 @@ if(typeof document !== 'undefined'){
   function tgFenceOn(){ return state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'oe' || state.dstyle === 'ar' || state.dstyle === 'wsl' || state.dstyle === 'wdl') && state.kind === 'fence'; }
   function dglOn(){ return state.sides === 'double' && (state.dstyle === 'wdl' || state.dstyle === 'wdlg') && state.material === 'wood' && ((state.dstyle === 'wdl') === (state.kind === 'fence')); }       // wood diagonal lattice section or gate (WDL-CUS, WDLG-CUS)
   function wslOn(){ return state.sides === 'double' && (state.dstyle === 'wsl' || state.dstyle === 'wdl') && state.kind === 'fence' && state.material === 'wood'; }       // wood square lattice section (WSL-CUS): the Oklahoma section with a square lattice in place of the T&G
+  function njHrOk(){ return njgOn() && (state.ddg === 'on' || state.topper === 'none'); }       // the New Jersey gate's high rail: no topper (a double drive New Jersey gate has no toppers, whatever the Topper row still holds)
   function wpaOn(){ return state.sides === 'single' && state.kind === 'fence' && state.material === 'wood' && state.sstyle === 'wpa'; }       // wood single sided Pennsylvania section (WPA-CUS): the square-edge board
   function sqlLatOn(){ return (wslOn() && state.dstyle === 'wsl') || (wslgOn() && state.dstyle === 'wslg') || (woodGateTgOn() && state.wTopper === 'SQL'); }       // the square lattices (wood): the ones that round to a whole number of strips
   function wslgOn(){ return state.sides === 'double' && (state.dstyle === 'wslg' || state.dstyle === 'wdlg') && state.kind === 'gate' && state.material === 'wood'; }       // wood square lattice gate (WSLG-CUS): the wood Oklahoma gate frame with the lattice and corner supports
@@ -4494,6 +4529,7 @@ if(typeof document !== 'undefined'){
     {key:'bottom', label:'Bottom show', hint:'Picket below the bottom frame member', min:0, max:60},
     {key:'ilShow', label:'Pickets show', hint:'Top of the top Gate Rail up to the tip of the cap', min:3, max:60},
     {key:'ilHighH', label:'High rail height', hint:'From the bottom of the top rail (the lowest point of its underside) to the top of the high rail. Usually 11 1/2.', min:0, max:60},
+    {key:'njHighH', label:'High rail height', hint:'From the bottom of the top rail (the lowest point of its underside on a crown, scallop or S-swept rail) to the top of the high rail.', min:0, max:60},
     {key:'topperH', label:'Topper height', hint:'Top of the gate down to the top of the 2x6 high-rail', min:6, max:60},
     {key:'ddgShE', label:'Ends show', hint:'', min:2, max:60},
     {key:'ddgShM', label:'Middle shows', hint:'', min:2, max:60},
@@ -5135,6 +5171,7 @@ if(typeof document !== 'undefined'){
     var woodG = woodGateTgOn(), woodTop = woodG && state.wTopper !== 'none';
     inputs.ilShow.parentNode.style.display = ilgOn() ? '' : 'none';
     inputs.ilHighH.parentNode.style.display = (ilgOn() && state.ilHigh === 'on') ? '' : 'none';
+    inputs.njHighH.parentNode.style.display = (njHrOk() && state.njHigh === 'on') ? '' : 'none';
     inputs.topperH.parentNode.style.display = ((pvcG && !oegOn() && state.topper !== 'none' && (!ddgNow || ddgTop)) || woodTop) ? '' : 'none';
     inputs.supLeg.parentNode.style.display = wslgOn() ? '' : 'none';
     inputs.openShow.parentNode.style.display = (woodTop && state.wTopper === 'OST') ? '' : 'none';
