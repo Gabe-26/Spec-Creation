@@ -4034,7 +4034,7 @@ function sheetSvg(c, info){
     if(c.wsl){
       var wxs = c.wsl.xs, wk = function(f){ return wxs[Math.max(0, Math.min(wxs.length - 1, Math.round((wxs.length - 1)*f)))]; };
       addRow('wlat', fmt(0.75) + ' X ' + fmt(1.25), 'LATTICE MATERIAL', 'front', c.wsl.diag ? c.wsl.cpts : [[wk(0.3), tHt*0.55],[wk(0.55), tHt*0.7],[wk(0.75), tHt*0.4]], 225);
-      if(!c.wsl.diag) addRow('wrail', fmt(0.75) + ' X ' + fmt(3.5), 'LATTICE RAIL', 'side', [], 225);      // hidden behind the fascia and back rails, so no callout arrow
+      if(!c.wsl.diag && c.wsl.sup) addRow('wrail', fmt(0.75) + ' X ' + fmt(3.5), 'LATTICE RAIL', 'side', [], 225);      // hidden behind the fascia and back rails, so no callout arrow
     } else addRow('tg', tgSize, tgName, 'front', [[c.x0 + tPitch*1.5, tHt*0.55],[tW*0.4, tHt*0.7],[tW*0.6, tHt*0.4]], 225);
     addRow('fascia', fmt(c.tF)+' X '+fmt(tFW), 'FASCIA', 'front', [[tW*0.3, tHt - tFW/2],[tW*0.7, tFW/2],[tW*0.5, tHt - tFW/2]], 225);
     if(c.tg.fMidC.length) addRow('fmid', fmt(c.tF)+' X '+fmt(tFW), 'MID FASCIA', 'front', c.tg.fMidC.map(function(z, i){ return [tW*(0.3 + 0.2*(i % 3)), z]; }), 225);
