@@ -2321,6 +2321,18 @@ function computePVCGate(s){
     nhrPart = {layer:'FRAME', kind:'rail', name:'High rail', dir:'h', sord:1, sideOrd:-0.5, noSide:true, y0:nry0, y1:nry1, yBack:nry1 + 0.25, pts:rect(xo0, nhr.zrb, xo1, nhr.zrt), loops:nld, x0:xo0, x1:xo1, isoBodies:null, slotTops:[]};
     parts.push(nhrPart);
     cuts.push({part:'High rail', qty:1, stock:'2 x ' + fmt(nhr.size), length:Wc, note:'Butts the side rails. ' + fmt(15/16) + ' x ' + fmt(3 + 1/16) + ' cutouts for the pickets, which go through.'});
+    // Plugs on the back of each upright holding the high rail, back view only (not in the isometric): the 2 x 6 gets the usual four (two columns of two), the 2 x 3 1/2 gets two, one above the other down the middle of the upright
+    var nhPlugs = [];
+    [0, 1].forEach(function(side){
+      if(nhr.size === 6) GM.plugCols.forEach(function(cx){ [nhr.zrt - GM.plugTop, nhr.zrb + GM.plugBot].forEach(function(zz){ nhPlugs.push([side ? W - cx : cx, zz]); }); });
+      else { var pxm = side ? W - GM.w/2 : GM.w/2, pzm = (nhr.zrt + nhr.zrb)/2; nhPlugs.push([pxm, pzm + 0.75]); nhPlugs.push([pxm, pzm - 0.75]); }      // 2 x 3 1/2: two plugs one above the other down the middle of the upright, centered on the rail (1 1/2 apart, my pick)
+    });
+    nhPlugs.forEach(function(q, i){
+      var cir = [], k;
+      for(k=0;k<24;k++) cir.push([q[0] + GM.plugR*Math.cos(2*Math.PI*k/24), q[1] + GM.plugR*Math.sin(2*Math.PI*k/24)]);
+      parts.push({layer:'FRAME', kind:'plug', name:'High-rail plug ' + (i+1), dir:'h', y0:GM.d, y1:GM.d + GM.plugH, yBack:GM.d + 0.5, pts:cir, mesh:plugMesh(q[0], q[1], GM.d, 1), noSide:true, noIso:true});      // on the back of each Gate Rail, so they show on the back view only
+    });
+    cuts.push({part:'High-rail plugs', qty:nhPlugs.length, stock:fmt(0.75) + ' dia', length:0, note:(nhr.size === 6 ? 'Four on each upright' : 'Two on each upright') + ', holding the high rail'});
   }
   if(NJP){
     var njY0 = ty0, njY1 = ty0 + tT, njWl = GM.spWall, njVis = Math.max(0, Math.min(0.1, njGapV/4)), pj;
