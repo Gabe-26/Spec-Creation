@@ -255,6 +255,117 @@
   </div>
 </dialog>
 
+<script type="text/plain" id="viewer3dTpl"><!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>__TITLE__</title>
+<style>
+html,body{margin:0;height:100%;background:#f1f1ee;font-family:Arial,Helvetica,sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{position:fixed;left:0;top:0;width:100%;height:100%;display:block;cursor:grab}
+.top{position:fixed;left:0;right:0;top:0;padding:max(10px,env(safe-area-inset-top)) 14px 10px;pointer-events:none}
+.top b{display:block;font-size:22px;color:#1d6b3a}
+.top span{font-size:13px;color:#444}
+.bot{position:fixed;left:14px;right:14px;bottom:max(12px,env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none}
+.bot p{margin:0;font-size:12px;color:#666}
+.bot button{pointer-events:auto;border:1px solid #2a2f33;background:#fff;border-radius:6px;font-size:14px;padding:8px 12px;cursor:pointer}
+</style></head><body>
+<canvas id="cv"></canvas>
+<div class="top"><b id="t"></b><span id="s"></span></div>
+<div class="bot"><p id="h">Drag to turn. Scroll or pinch to zoom. Right-drag or two fingers to move.</p><button id="rb" type="button">Reset view</button></div>
+<script type="application/json" id="d">__DATA__<\/script>
+<script>
+(function(){
+var D = JSON.parse(document.getElementById('d').textContent);
+document.getElementById('t').textContent = D.title; document.getElementById('s').textContent = D.sub; document.title = D.title + ' - 3D';
+var cv = document.getElementById('cv'), gl = cv.getContext('webgl', {antialias:true}) || cv.getContext('experimental-webgl');
+if(!gl){ document.getElementById('h').textContent = 'This browser cannot show 3D. Try another browser.'; return; }
+var P = [], N = [], C = [], E = [], mn = [1e9,1e9,1e9], mx = [-1e9,-1e9,-1e9];
+D.bodies.forEach(function(b){
+  var p = b.p, i, col = [b.c[0]/255, b.c[1]/255, b.c[2]/255];
+  for(i=0;i+8<p.length;i+=9){
+    var ux = p[i+3]-p[i], uy = p[i+4]-p[i+1], uz = p[i+5]-p[i+2], vx = p[i+6]-p[i], vy = p[i+7]-p[i+1], vz = p[i+8]-p[i+2];
+    var nx = uy*vz-uz*vy, ny = uz*vx-ux*vz, nz = ux*vy-uy*vx, l = Math.sqrt(nx*nx+ny*ny+nz*nz); if(l < 1e-12) continue;
+    nx /= l; ny /= l; nz /= l;
+    for(var k=0;k<3;k++){ var x = p[i+3*k], y = p[i+3*k+1], z = p[i+3*k+2]; P.push(x,y,z); N.push(nx,ny,nz); C.push(col[0],col[1],col[2]);
+      if(x<mn[0])mn[0]=x; if(y<mn[1])mn[1]=y; if(z<mn[2])mn[2]=z; if(x>mx[0])mx[0]=x; if(y>mx[1])mx[1]=y; if(z>mx[2])mx[2]=z; }
+  }
+  for(i=0;i<b.e.length;i++) E.push(b.e[i]);
+});
+var tg = [(mn[0]+mx[0])/2, (mn[1]+mx[1])/2, (mn[2]+mx[2])/2], rad = Math.max(1, Math.sqrt(Math.pow(mx[0]-mn[0],2)+Math.pow(mx[1]-mn[1],2)+Math.pow(mx[2]-mn[2],2))/2);
+function sh(type, src){ var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; }
+function prog(vs, fs){ var p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; }
+var pg = prog('attribute vec3 a;attribute vec3 n;attribute vec3 c;uniform mat4 m;uniform mat3 r;varying vec3 vc;varying vec3 vn;void main(){gl_Position=m*vec4(a,1.0);vn=r*n;vc=c;}',
+  'precision mediump float;varying vec3 vc;varying vec3 vn;void main(){vec3 n=normalize(vn);if(n.z<0.0)n=-n;float d=max(dot(n,normalize(vec3(-0.35,0.55,0.75))),0.0);gl_FragColor=vec4(vc*(0.42+0.58*d),1.0);}');
+var pe = prog('attribute vec3 a;uniform mat4 m;void main(){gl_Position=m*vec4(a,1.0);}', 'precision mediump float;void main(){gl_FragColor=vec4(0.16,0.18,0.2,1.0);}');
+function buf(arr){ var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.STATIC_DRAW); return b; }
+var bP = buf(P), bN = buf(N), bC = buf(C), bE = buf(E), nT = P.length/3, nE = E.length/3;
+var yaw = 0.62, pitch = 0.36, dist = 0, pan = [0,0,0], fov = 35*Math.PI/180;
+function reset(){ yaw = 0.62; pitch = 0.36; dist = rad/Math.sin(fov/2)*1.05; pan = [0,0,0]; draw(); }
+function mat(){
+  var cp = Math.cos(pitch), sp = Math.sin(pitch), cy = Math.cos(yaw), sy = Math.sin(yaw);
+  var T = [tg[0]+pan[0], tg[1]+pan[1], tg[2]+pan[2]];
+  var ex = T[0] + dist*sy*cp, ey = T[1] - dist*cy*cp, ez = T[2] + dist*sp;
+  var fx = T[0]-ex, fy = T[1]-ey, fz = T[2]-ez, fl = Math.sqrt(fx*fx+fy*fy+fz*fz); fx/=fl; fy/=fl; fz/=fl;
+  var sx = fy*1-fz*0, sy2 = fz*0-fx*1, sz = 0; var sl = Math.sqrt(sx*sx+sy2*sy2+sz*sz); sx/=sl; sy2/=sl; sz/=sl;
+  var ux = sy2*fz-sz*fy, uy = sz*fx-sx*fz, uz = sx*fy-sy2*fx;
+  var V = [sx,ux,-fx,0, sy2,uy,-fy,0, sz,uz,-fz,0, -(sx*ex+sy2*ey+sz*ez), -(ux*ex+uy*ey+uz*ez), (fx*ex+fy*ey+fz*ez), 1];
+  var asp = cv.width/cv.height, f = 1/Math.tan(fov/2), nr = dist*0.05, fr = dist + rad*4;
+  var Pm = [f/asp,0,0,0, 0,f,0,0, 0,0,(fr+nr)/(nr-fr),-1, 0,0,2*fr*nr/(nr-fr),0];
+  var M = new Array(16), i, j, k;
+  for(i=0;i<4;i++) for(j=0;j<4;j++){ var s = 0; for(k=0;k<4;k++) s += Pm[k*4+j]*V[i*4+k]; M[i*4+j] = s; }
+  return {M:M, R:[V[0],V[1],V[2], V[4],V[5],V[6], V[8],V[9],V[10]], eye:[ex,ey,ez], right:[sx,sy2,sz], up:[ux,uy,uz]};
+}
+var raf = 0;
+function draw(){ if(raf) return; raf = requestAnimationFrame(function(){ raf = 0; render(); }); }
+function render(){
+  var dpr = window.devicePixelRatio || 1, w = Math.round(cv.clientWidth*dpr), h = Math.round(cv.clientHeight*dpr);
+  if(cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  gl.viewport(0, 0, w, h); gl.clearColor(0.945, 0.945, 0.933, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST);
+  var q = mat();
+  gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 1);
+  gl.useProgram(pg);
+  [['a',bP],['n',bN],['c',bC]].forEach(function(x){ var l = gl.getAttribLocation(pg, x[0]); gl.bindBuffer(gl.ARRAY_BUFFER, x[1]); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 3, gl.FLOAT, false, 0, 0); });
+  gl.uniformMatrix4fv(gl.getUniformLocation(pg, 'm'), false, new Float32Array(q.M)); gl.uniformMatrix3fv(gl.getUniformLocation(pg, 'r'), false, new Float32Array(q.R));
+  gl.drawArrays(gl.TRIANGLES, 0, nT);
+  gl.disable(gl.POLYGON_OFFSET_FILL);
+  gl.useProgram(pe);
+  var la = gl.getAttribLocation(pe, 'a'); gl.bindBuffer(gl.ARRAY_BUFFER, bE); gl.enableVertexAttribArray(la); gl.vertexAttribPointer(la, 3, gl.FLOAT, false, 0, 0);
+  gl.uniformMatrix4fv(gl.getUniformLocation(pe, 'm'), false, new Float32Array(q.M));
+  gl.drawArrays(gl.LINES, 0, nE);
+  [gl.getAttribLocation(pg,'n'), gl.getAttribLocation(pg,'c')].forEach(function(l){ gl.disableVertexAttribArray(l); });
+}
+function movePan(dx, dy){
+  var q = mat(), k = 2*dist*Math.tan(fov/2)/cv.clientHeight, i;
+  for(i=0;i<3;i++) pan[i] += (-q.right[i]*dx + q.up[i]*dy)*k;
+  draw();
+}
+var ptrs = {}, last = null;
+function two(){ var k = Object.keys(ptrs); return k.length === 2 ? [ptrs[k[0]], ptrs[k[1]]] : null; }
+cv.addEventListener('pointerdown', function(e){ cv.setPointerCapture(e.pointerId); ptrs[e.pointerId] = {x:e.clientX, y:e.clientY, b:e.button, sh:e.shiftKey}; var t = two(); last = t ? {d:Math.hypot(t[0].x-t[1].x, t[0].y-t[1].y), x:(t[0].x+t[1].x)/2, y:(t[0].y+t[1].y)/2} : null; cv.style.cursor = 'grabbing'; });
+cv.addEventListener('pointermove', function(e){
+  var p = ptrs[e.pointerId]; if(!p) return;
+  var dx = e.clientX-p.x, dy = e.clientY-p.y, t;
+  p.x = e.clientX; p.y = e.clientY;
+  t = two();
+  if(t){
+    var d = Math.hypot(t[0].x-t[1].x, t[0].y-t[1].y), mx2 = (t[0].x+t[1].x)/2, my2 = (t[0].y+t[1].y)/2;
+    if(last && last.d > 0){ dist = Math.max(rad*0.4, Math.min(rad*14, dist*last.d/d)); movePan(mx2-last.x, my2-last.y); }
+    last = {d:d, x:mx2, y:my2}; draw(); return;
+  }
+  if(p.b === 2 || p.b === 1 || p.sh) movePan(dx, dy);
+  else { yaw -= dx*0.008; pitch = Math.max(-1.5, Math.min(1.5, pitch + dy*0.008)); draw(); }
+});
+function up(e){ delete ptrs[e.pointerId]; last = null; if(!Object.keys(ptrs).length) cv.style.cursor = 'grab'; }
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+cv.addEventListener('wheel', function(e){ e.preventDefault(); dist = Math.max(rad*0.4, Math.min(rad*14, dist*Math.exp(e.deltaY*0.0012))); draw(); }, {passive:false});
+cv.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+cv.addEventListener('dblclick', reset);
+document.getElementById('rb').addEventListener('click', reset);
+window.addEventListener('resize', draw);
+reset();
+})();
+<\/script>
+</body></html>
+</script>
 <script>
 /* ============================ DATA ============================ */
 // Actual lumber sizes in inches (thickness x face width).
@@ -5277,7 +5388,7 @@ function sheetSvg(c, info){
     tx(hdX + 52, 23, h[2] + '  +', 11, GREEN, 'middle'); o.push('</g>'); hdX += 110;
   });
   // ---- iso view ----
-  var isoBox = preset ? {x0:656, x1:916, y0:34, y1:348} : {alt:{x0:Ix0 + 20, x1:752, y0:190, y1:538}, shift:45, x0:Ix0 + 12, x1:908, y0:(c.mode === 'tg' ? Math.max(240, 64 + tgRows.length*(tgRows.length > 6 ? 30 : 34)) : 198), y1:540};
+  var isoBox = preset ? {x0:675.5, x1:896.5, y0:57.5, y1:324.5} : {alt:{x0:Ix0 + 20, x1:752, y0:190, y1:538}, shift:45, x0:Ix0 + 12, x1:908, y0:(c.mode === 'tg' ? Math.max(240, 64 + tgRows.length*(tgRows.length > 6 ? 30 : 34)) : 198), y1:540};
   var winOn = !!(((c.wtop && !c.wtop.spindle) || c.wsl || c.oe || (c.oef && c.oef.gapZ !== null)) && dimsOn);      // lattice detail window: it takes the open space at the top beside the specification table, so the isometric stays below the table
   if(winOn) delete isoBox.alt;
   o.push(isoSvg(c, isoBox, wood));
@@ -5443,6 +5554,99 @@ function specHTML(c){
   if(c.mode === 'tg') h.push('<div class="note">Front to back: fascia' + (s.kind === 'gate' ? ', ' : ' and side cleats, ') + 'T&G, ' + (s.kind === 'gate' ? 'gate frame and brace' : 'back rails and back cleats') + '. T&G boards are drawn at their face width; the tongue is not modeled. Last board is ripped to fit.</div>');
   else h.push('<div class="note">Frame sits behind the pickets. Picket shapes come from the picket library and stretch between the notches and the bottom end. Brace length is corner to corner; scribe it to fit.</div>');
   return h.join('');
+}
+
+/* ============ 3D version: one standalone HTML page per preset (plain WebGL, no libraries) ============ */
+var VIEW3D_BASE = 'https://gabe-26.github.io/Spec-Creation/';      // where the 3D files are uploaded; the QR link is this plus the preset name
+var TRI3D_CACHE = {};
+function ear3d(pts){      // ear-clipping triangulation of a flat outline; returns triples of indexes
+  var n = pts.length, idx = [], i, out = [], area = 0;
+  if(n < 3) return out;
+  for(i=0;i<n;i++){ var q0 = pts[i], q1 = pts[(i+1)%n]; area += q0[0]*q1[1] - q1[0]*q0[1]; }
+  for(i=0;i<n;i++) idx.push(area >= 0 ? i : n-1-i);
+  function cr(a, b, c){ return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]); }
+  function inT(p, a, b, c){ return cr(a, b, p) >= -1e-9 && cr(b, c, p) >= -1e-9 && cr(c, a, p) >= -1e-9; }
+  var guard = 0;
+  while(idx.length > 3 && guard++ < 20000){
+    var m = idx.length, k, found = false;
+    for(k=0;k<m;k++){
+      var ia = idx[(k+m-1)%m], ib = idx[k], ic = idx[(k+1)%m], a = pts[ia], b = pts[ib], c = pts[ic];
+      if(cr(a, b, c) <= 1e-12) continue;
+      var ok = true, j;
+      for(j=0;j<m;j++){ var ij = idx[j]; if(ij === ia || ij === ib || ij === ic) continue; if(inT(pts[ij], a, b, c)){ ok = false; break; } }
+      if(!ok) continue;
+      out.push([ia, ib, ic]); idx.splice(k, 1); found = true; break;
+    }
+    if(!found){
+      var k2 = -1;
+      for(k=0;k<m;k++){ if(Math.abs(cr(pts[idx[(k+m-1)%m]], pts[idx[k]], pts[idx[(k+1)%m]])) <= 1e-9){ k2 = k; break; } }
+      if(k2 < 0){ for(k=1;k<m-1;k++) out.push([idx[0], idx[k], idx[k+1]]); return out; }
+      idx.splice(k2, 1);
+    }
+  }
+  if(idx.length === 3) out.push([idx[0], idx[1], idx[2]]);
+  return out;
+}
+function color3d(p, wood){
+  if(wood) return woodRGB(p);
+  var hx = p.kind === 'alu' ? '#b4bcc4' : (p.kind === 'cap' ? '#c0c3bb' : (p.kind === 'plug' ? '#f4f4f0' : (p.layer === 'PICKET' ? (p.vg ? '#cbccc6' : '#f6f6f2') : (p.layer === 'BRACE' ? '#e4e4de' : '#dcdcd5'))));
+  return [parseInt(hx.substr(1, 2), 16), parseInt(hx.substr(3, 2), 16), parseInt(hx.substr(5, 2), 16)];
+}
+function bodies3d(c, wood){      // every part of the build as flat-shaded triangles and a few edge lines, in inches (x across, y front to back, z up)
+  var res = [];
+  function r3(v){ return Math.round(v*1000)/1000; }
+  function prism(poly, vt, rgb, name){      // poly: outline; vt(i, t): the 3D point of outline point i on layer t (0 or 1)
+    var pts = [], i, n;
+    for(i=0;i<poly.length;i++){ var q = poly[i], l = pts[pts.length-1]; if(!l || Math.abs(q[0]-l[0]) > 1e-7 || Math.abs(q[1]-l[1]) > 1e-7) pts.push(q); }
+    if(pts.length > 1 && Math.abs(pts[0][0]-pts[pts.length-1][0]) < 1e-7 && Math.abs(pts[0][1]-pts[pts.length-1][1]) < 1e-7) pts.pop();
+    n = pts.length; if(n < 3) return;
+    var key = n + '|' + pts.map(function(q){ return r3(q[0]-pts[0][0]) + ',' + r3(q[1]-pts[0][1]); }).join(';');
+    var tr = TRI3D_CACHE[key] || (TRI3D_CACHE[key] = ear3d(pts)), P = [], E = [], t;
+    function put(arr, v){ arr.push(r3(v[0]), r3(v[1]), r3(v[2])); }
+    tr.forEach(function(T){ for(t=0;t<2;t++){ var o = t ? [T[0], T[1], T[2]] : [T[2], T[1], T[0]]; o.forEach(function(ix){ put(P, vt(ix, t)); }); } });
+    for(i=0;i<n;i++){
+      var j = (i+1)%n, a0 = vt(i, 0), b0 = vt(j, 0), a1 = vt(i, 1), b1 = vt(j, 1);
+      [a0, b0, b1, a0, b1, a1].forEach(function(v){ put(P, v); });
+      put(E, a0); put(E, b0); put(E, a1); put(E, b1);
+      var pv = pts[(i+n-1)%n], cu = pts[i], nx = pts[j], d1x = cu[0]-pv[0], d1y = cu[1]-pv[1], d2x = nx[0]-cu[0], d2y = nx[1]-cu[1], l1 = Math.sqrt(d1x*d1x + d1y*d1y), l2 = Math.sqrt(d2x*d2x + d2y*d2y);
+      if(l1 > 1e-9 && l2 > 1e-9 && (d1x*d2x + d1y*d2y)/(l1*l2) < 0.9){ put(E, a0); put(E, a1); }      // a vertical line only at a real corner, not along a curve
+    }
+    res.push({n:name || '', c:rgb, p:P, e:E});
+  }
+  function meshBody(mesh, rgb, name){
+    var P = [], E = [];
+    mesh.forEach(function(f){
+      if(f.kind === 'outline' || !f.v || f.v.length < 3) return;
+      for(var k=1;k<f.v.length-1;k++) [f.v[0], f.v[k], f.v[k+1]].forEach(function(v){ P.push(r3(v[0]), r3(v[1]), r3(v[2])); });
+    });
+    if(P.length) res.push({n:name || '', c:rgb, p:P, e:E});
+  }
+  c.parts.forEach(function(p){
+    if(p.noIso || p.holes) return;
+    var rgb = color3d(p, wood), r = yRange(p, c), nm = p.name || p.kind || p.layer;
+    if(p.mesh){ meshBody(p.mesh, rgb, nm); return; }
+    if(p.isoMeshes){ p.isoMeshes.forEach(function(im){ meshBody(im.mesh, rgb, nm); }); return; }
+    if(p.isoBodies){ p.isoBodies.forEach(function(ib){ prism(ib.prof, function(i, t){ return [t ? ib.x1 : ib.x0, ib.prof[i][0], ib.prof[i][1]]; }, rgb, nm); }); return; }
+    if(p.profYZ){ prism(p.profYZ, function(i, t){ return [t ? p.x1 : p.x0, p.profYZ[i][0], p.profYZ[i][1]]; }, rgb, nm); return; }
+    var poly = p.lat ? latOutline(p.lat) : p.pts;
+    prism(poly, function(i, t){ return [poly[i][0], t ? r[1] : r[0], poly[i][1]]; }, rgb, nm);
+  });
+  c.pickets.forEach(function(p){
+    var rgb = color3d(p, wood), r = yRange(p, c), nm = p.name || 'picket';
+    if(p.prof){
+      (p.isoSegs || [{z:p.isoZ}]).forEach(function(sg){
+        var zz = sg.z || p.pts.map(function(q){ return q[1]; }), z0 = Math.min.apply(null, zz), z1 = Math.max.apply(null, zz);
+        prism(p.prof, function(i, t){ return [p.prof[i][0], p.prof[i][1], t ? (p.zTop ? p.zTop(p.prof[i][0]) : z1) : z0]; }, rgb, nm);
+      });
+    } else prism(p.pts, function(i, t){ return [p.pts[i][0], t ? r[1] : r[0], p.pts[i][1]]; }, rgb, nm);
+  });
+  return res;
+}
+function build3dHtml(c, title, sub, wood){
+  var tpl = document.getElementById('viewer3dTpl').textContent.replace(/<\\\/script>/g, '<' + '/script>');
+  var data = JSON.stringify({title:title, sub:sub, bodies:bodies3d(c, wood)}).replace(/</g, '\\u003c');
+  var esc = String(title).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return tpl.replace('__TITLE__', function(){ return esc; }).replace('__DATA__', function(){ return data; });
 }
 
 /* ============================ APP ============================ */
@@ -5773,13 +5977,15 @@ if(typeof document !== 'undefined'){
   segFs.sstyle.parentNode.insertBefore(presetFs, segFs.sstyle.nextSibling);      // right under the style rows (the Double sided style row, then the Single sided style row)
   function pStyle(d){ return (d.sides === 'single' && d.kind === 'fence' && d.material === 'wood' && d.sstyle === 'wpa') ? 'wpa' : 'std'; }
   function sameStyle(a, b){ return a.material === b.material && a.kind === b.kind && a.dstyle === b.dstyle && pStyle(a) === pStyle(b); }      // a preset belongs to the build and style it was saved under
+  function view3dOk(){ return state.material === 'wood' && state.kind === 'gate' && state.sides === 'double' && state.dstyle === 'tg'; }      // the 3D version is for the wood Oklahoma gate (WOKG-CUS) first
+  function view3dName(nm){ return String(nm).replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'preset'; }
   function renderPresetBtns(){
     var host = presetFs.querySelector('#presetBtns'); if(!host) return;
     var lg = presetFs.querySelector('legend'); if(lg) lg.textContent = pergolaOn() ? 'PERG-CUS presets' : wpaOn() ? 'WPA-CUS presets' : (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wdl') ? 'WDL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wdlg') ? 'WDLG-CUS presets' : (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wsl') ? 'WSL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wslg') ? 'WSLG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'arg') ? '2ARG-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'ar') ? '2AR-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'oe') ? 'OE-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'oeg') ? 'OEG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'tg') ? 'OKG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'ilg') ? 'ILG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'njg') ? 'NJG-CUS presets' : 'Presets';
     var h = '';
     presets.forEach(function(q, i){
       if(!sameStyle(q.data, state)) return;
-      h += '<span class="prchip"><button type="button" data-pa="use" data-i="'+i+'">'+esc(q.name)+'</button><button type="button" class="prx" data-pa="del" data-i="'+i+'" title="Delete preset" aria-label="Delete preset '+esc(q.name)+'">&times;</button></span>';
+      h += '<span class="prchip"><button type="button" data-pa="use" data-i="'+i+'">'+esc(q.name)+'</button>' + (view3dOk() ? '<button type="button" class="prx" data-pa="3d" data-i="'+i+'" title="Create the 3D version of '+esc(q.name)+'" aria-label="Create 3D version of '+esc(q.name)+'">3D</button>' : '') + '<button type="button" class="prx" data-pa="del" data-i="'+i+'" title="Delete preset" aria-label="Delete preset '+esc(q.name)+'">&times;</button></span>';
     });
     host.innerHTML = h || '<span class="hint" style="margin:0">No presets yet for this style. Set the options and sizes, name them below and save.</span>';
   }
@@ -5796,6 +6002,14 @@ if(typeof document !== 'undefined'){
     var b = e.target.closest('button[data-pa]'); if(!b) return;
     var act = b.dataset.pa, i = +b.dataset.i;
     if(act === 'use' && presets[i]) applyPreset(presets[i]);
+    else if(act === '3d' && presets[i]){
+      var q3 = presets[i], fn3 = view3dName(q3.name);
+      applyPreset(q3);
+      state.psQr = VIEW3D_BASE + fn3 + '.html'; q3.data.psQr = state.psQr; savePresets();      // the QR code on this preset's sheet points at the 3D file
+      update();
+      var c3 = compute(state);
+      download(fn3 + '.html', build3dHtml(c3, q3.name, fmt(c3.W) + ' wide x ' + fmt(c3.H) + ' high', state.material === 'wood'), 'text/html');
+    }
     else if(act === 'del' && presets[i]){ if(window.confirm('Delete the preset ' + presets[i].name + '?')){ presets.splice(i, 1); savePresets(); renderPresetBtns(); } }
     else if(act === 'save'){
       var inp = presetFs.querySelector('#presetName'), nm = (inp.value || '').trim(); if(!nm){ inp.focus(); return; }
