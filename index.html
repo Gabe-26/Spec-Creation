@@ -1348,9 +1348,9 @@ function compute(s){
   if(s.material === 'metal') return computeCantilever(s);
   if(s.kind === 'pergola' && s.material === 'pvc') return computePergola(s);      // PERG-CUS
   if(s.kind === 'gate' && isDowel(s.frame)) s = Object.assign({}, s, {frame:'2x4'});     // dowel rail is fence only
-  if(s.ddg === 'on' && !s.ddgLeaf && s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'njg' || s.dstyle === 'ilg' || s.dstyle === 'oeg')) return computeDDG(s);      // double drive gate: two leaves
+  if(s.ddg === 'on' && !s.ddgLeaf && s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'njg' || s.dstyle === 'ilg' || s.dstyle === 'oeg' || s.dstyle === 'arg')) return computeDDG(s);      // double drive gate: two leaves
   if(s.material === 'pvc' && s.kind === 'fence' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'oe' || s.dstyle === 'ar')) return computePVC(s);
-  if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'njg' || s.dstyle === 'oeg')) return computePVCGate(s);
+  if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'njg' || s.dstyle === 'oeg' || s.dstyle === 'arg')) return computePVCGate(s);
   if(s.material === 'pvc' && s.kind === 'gate' && s.sides === 'double' && s.dstyle === 'ilg') return computeILG(s);
   if(s.sides === 'double' && (s.dstyle === 'tg' || s.dstyle === 'wsl' || s.dstyle === 'wslg' || s.dstyle === 'wdl' || s.dstyle === 'wdlg')) return computeTG(s);
   var f = FRAMES[s.frame], H = s.height, W = s.width, pk = picketDef((s.sides === 'single' && s.kind === 'fence' && s.material === 'wood' && s.sstyle === 'wpa') ? (s.wpaSize === '6' ? 'wpa6' : 'wpa') : s.style);      // WPA-CUS: the fixed square-edge board
@@ -2384,11 +2384,13 @@ function computeILG(s){
 
 function computePVCGate(s){
   var OEG = (s.dstyle === 'oeg');      // OEG-CUS: the Old English gate. Four plain Gate Rail pieces like the New Jersey gate, with a grid of uprights and bars between them, no bracing and no toppers for now
-  if(OEG && s.topper && s.topper !== 'none') s = Object.assign({}, s, {topper:'none'});
+  var ARG = (s.dstyle === 'arg');      // 2ARG-CUS: the Arkansas gate. The New Jersey gate's frame, rails, bracing and plugs with the Arkansas section's 1 1/2 square hollow pickets (1 into the top and bottom rail, flush against the uprights). No toppers.
+  if((OEG || ARG) && s.topper && s.topper !== 'none') s = Object.assign({}, s, {topper:'none'});
+  var nPT = ARG ? GM.spW : GM.njT, nPW = ARG ? GM.spW : GM.njW, nCT = ARG ? GM.spCut : GM.njCutT, nCW = ARG ? GM.spCut : GM.njCutW;      // picket thickness and width, and the cutout in the rails
   // NJ: the New Jersey gate (NJG-CUS). It is the Oklahoma gate with 7/8 x 3 hollow pickets instead of T&G, in a frame of four plain 3.5 x 3.5 Gate Rail pieces (no slot) welded at 45 degree miters.
   // The pickets go into cutouts in the top and bottom rail, the first and last flush against the side rails, spaced to the gap closest to the typed one. Everything else (X-brace or supports, plugs,
   // crown and scallop rails, toppers) follows the Oklahoma gate, with the toppers butting against the side rails like the pocket gate since the Gate Rail has no slot.
-  var NJ = (s.dstyle === 'njg' || OEG), NJP = (s.dstyle === 'njg'), njRails = {}, pk = NJ ? {id:'njg', name:'NJG picket', t:GM.njT, w:GM.njW, pitch:GM.njW} : picketDef(s.style), H = s.height, W = s.width, G = GM.w, warn = [], parts = [], pickets = [], cuts = [];
+  var NJ = (s.dstyle === 'njg' || OEG || ARG), NJP = (s.dstyle === 'njg' || ARG), njRails = {}, pk = NJ ? {id:'njg', name:(ARG ? 'ARG picket' : 'NJG picket'), t:nPT, w:nPW, pitch:nPW} : picketDef(s.style), H = s.height, W = s.width, G = GM.w, warn = [], parts = [], pickets = [], cuts = [];
   // Pocket frame: two posts (5x5 or 4x4) 1 taller than the gate at the top and 1 at the bottom, and the 2x6 top and bottom rails of the Oklahoma section between them instead of the four
   // mitered Gate Master pieces. Gx is the width of the frame on each side, Gz the height of the frame at the top and bottom, Dp its depth, up1 how far the posts stand above the gate.
   var PKT = (s.pframe === 'pocket') && !NJ, Pt = PKT ? ({'4':4, '3.5':3.5}[String(s.ppost)] || 5) : 0, PGM = PKT && Pt === 3.5, Gx = PKT ? Pt : GM.w,      // PGM: the pocket gate with 3 1/2 x 3 1/2 uprights, which are Gate Masters (the slot takes the T&G)
@@ -2613,14 +2615,14 @@ function computePVCGate(s){
   plugXs.sort(function(a, b){ return a - b; });
   var njN = 0, njGapV = 0, njXs = [];
   if(NJP){      // the pickets: the whole number whose space is closest to the typed one, first and last flush against the side rails; one plug centered on each
-    var njWant = (+s.njgap >= 0) ? +s.njgap : GM.njGap, njBest = 1e9, nn2, gq2, dq2;
+    var njWant = ARG ? ((+s.argap >= 0) ? +s.argap : GM.spGap) : ((+s.njgap >= 0) ? +s.njgap : GM.njGap), njBest = 1e9, nn2, gq2, dq2;
     njN = 2;
-    for(nn2=2; nn2<=400; nn2++){ gq2 = (Wc - GM.njW*nn2)/(nn2 - 1); if(gq2 < 0) break; dq2 = Math.abs(gq2 - njWant); if(dq2 < njBest - 1e-9){ njBest = dq2; njN = nn2; } }
-    njGapV = (Wc - GM.njW*njN)/(njN - 1);
+    for(nn2=2; nn2<=400; nn2++){ gq2 = (Wc - nPW*nn2)/(nn2 - 1); if(gq2 < 0) break; dq2 = Math.abs(gq2 - njWant); if(dq2 < njBest - 1e-9){ njBest = dq2; njN = nn2; } }
+    njGapV = (Wc - nPW*njN)/(njN - 1);
     plugXs = [];
-    for(nn2=0; nn2<njN; nn2++){ njXs.push(xo0 + nn2*(GM.njW + njGapV) + GM.njW/2); plugXs.push(njXs[nn2]); }
+    for(nn2=0; nn2<njN; nn2++){ njXs.push(xo0 + nn2*(nPW + njGapV) + nPW/2); plugXs.push(njXs[nn2]); }
     nT = njN; eE = pitch;
-    if(Wc < 2*GM.njW) warn.push('The gate is too narrow for two pickets between the Gate Rails.');
+    if(Wc < 2*nPW) warn.push('The gate is too narrow for two pickets between the Gate Rails.');
   }
   if(OEG){ /* the Old English gate has no bracing for now */ } else if(!xb){
     [['Bottom support', zo0, zo0 + GM.bw],['Top support', zt - GM.bw, zt]].forEach(function(b){
@@ -2910,7 +2912,7 @@ function computePVCGate(s){
   if(NJP){
     var njY0 = ty0, njY1 = ty0 + tT, njWl = GM.spWall, njVis = Math.max(0, Math.min(0.1, njGapV/4)), pj;
     for(pj=0; pj<njN; pj++){
-      var qx0 = xo0 + pj*(GM.njW + njGapV), qx1 = qx0 + GM.njW;
+      var qx0 = xo0 + pj*(nPW + njGapV), qx1 = qx0 + nPW;
       var njO = [[qx0,njY0],[qx1,njY0],[qx1,njY1],[qx0,njY1]], njH = [[qx0 + njWl,njY0 + njWl],[qx1 - njWl,njY0 + njWl],[qx1 - njWl,njY1 - njWl],[qx0 + njWl,njY1 - njWl]];
       var njPk = {layer:'PICKET', name:'Picket ' + (pj + 1), y0:njY0, y1:njY1, noSide:true, pts:((CR && !TPK) ? crownBoardPts(qx0, qx1, bz0, CR) : rect(qx0, bz0, qx1, bz1)), prof:njO, loops:{outer:njO, holes:[njH]}};
       njPk.isoZ = [zo0, Math.max.apply(null, njPk.pts.map(function(q){ return q[1]; }))];      // the isometric draws only the part above the bottom rail; the part inside the rail is hidden
@@ -2959,7 +2961,7 @@ function computePVCGate(s){
   if(NJ) cuts.forEach(function(r){
     if(r.part === 'Gate Master') r.part = 'Gate Rail';
     if(OEG) return;
-    if(r.part === 'T&G boards'){ r.part = 'Pickets'; r.stock = fmt(GM.njT) + ' x ' + fmt(GM.njW) + ' hollow'; r.note = 'Space ' + fmt(njGapV) + ', first and last flush against the side rails. ' + fmt(GM.njCutT) + ' x ' + fmt(GM.njCutW) + ' cutouts in the top and bottom rail, ' + fmt(GM.njIn) + ' into each.'; }
+    if(r.part === 'T&G boards'){ r.part = 'Pickets'; r.stock = fmt(nPT) + ' x ' + fmt(nPW) + ' hollow'; r.note = 'Space ' + fmt(njGapV) + ', first and last flush against the side rails. ' + fmt(nCT) + ' x ' + fmt(nCW) + ' cutouts in the top and bottom rail, ' + fmt(GM.njIn) + ' into each.'; }
     if(r.part === 'Plugs') r.note = 'One centered on each picket, along the brace';
   });
   if(CR && !PKT && !ALU) cuts.push({part:'Rail plugs', qty:8, stock:fmt(0.75) + ' dia', length:0, note:'Four on the back of each upright, holding the end of the rail'});
@@ -2985,7 +2987,7 @@ function computePVCGate(s){
     inner:null, Wc:Wc,
     depth:{y0:0, y1:Dp + (ALU ? ALT : 0)}, alu:aluInfo,
     tg:{pitch:pitch, lastW:lastW, rip:rip, spaces:[], lastSpace:0, midC:[], spaceRanges:[], fSpaces:[], fLastSpace:0, fMidC:[]},
-    njg:(NJP ? {n:njN, gap:njGapV, xs:njXs, z0:zo0, z1:zt} : null), njhr:nhr, oeg:OEG, oef:(OEG ? oegInfo : null), pv:(OEG ? {lastSpace:oegInfo.lastSpace, hm:oegInfo.hm, mids:oegInfo.midZ, rh:GM.w} : undefined),
+    njg:(NJP ? {n:njN, gap:njGapV, xs:njXs, z0:zo0, z1:zt, pw:nPW, pt:nPT, arg:ARG} : null), njhr:nhr, oeg:OEG, oef:(OEG ? oegInfo : null), pv:(OEG ? {lastSpace:oegInfo.lastSpace, hm:oegInfo.hm, mids:oegInfo.midZ, rh:GM.w} : undefined),
     tgNote: OEG ? ('Old English, ' + oegInfo.nUp + ' uprights, ' + oegInfo.nBar + ' bars') : NJ ? (njN + ' pickets, space ' + fmt(njGapV) + ', ' + plugs.length + ' plugs') : (n + ' T&G boards' + (rip ? ', first and last cut to ' + fmt(lastW) : '') + ', ' + plugs.length + ' plugs')
   };
 }
@@ -4624,7 +4626,7 @@ function sheetSvg(c, info){
       addG('spindle', fmt(GM.spW) + ' X ' + fmt(GM.spW), 'SPINDLE', 'front', (c.ddg ? [0.2, 0.35, 0.65, 0.8] : [0.3, 0.5, 0.7]).map(function(f){ var k = Math.min(c.oef.nUp - 1, Math.max(0, Math.round((c.oef.nUp - 1)*f))); return [c.oef.xs[k], c.oef.zMid]; }), 45);
       addG('oebar', fmt(GM.oeBar) + ' X ' + fmt(GM.spW), 'PICKET', 'front', oeBarPts(c.oef, c.ddg ? [0.2, 0.35, 0.65, 0.8] : [0.3, 0.5, 0.7]), 225);
     }
-    else if(c.njg) addG('tg', fmt(GM.njT)+' X '+fmt(GM.njW), 'PICKET', 'front', tgPts, 225);
+    else if(c.njg) addG('tg', fmt(c.njg.pt)+' X '+fmt(c.njg.pw), 'PICKET', 'front', tgPts, 225);
     else addG('tg', fmt(pk.t)+' X '+fmt(c.tg.pitch), 'T&G', 'front', tgPts, 225);
     if(c.njg || c.oeg) addG('frame', fmt(GM.w)+' X '+fmt(GM.d), 'GATE RAIL', 'front', (c.crown ? [[gW*0.7, GM.w/2],[GM.w/2, gH*0.5],[gW - GM.w/2, gH*0.5]] : [[gW*0.3, gH - GM.w/2],[gW*0.7, GM.w/2],[GM.w/2, gH*0.5]]), 225);
     else if(c.pocket){
@@ -4778,8 +4780,8 @@ function sheetSvg(c, info){
     else if(c.ddg){ o.push(dimH(bx0, BM.X(c.ddg.Wl), BM.Y(-d.fs*4), fmt(c.ddg.Wl), BM.Y(0), BM.Y(0), stB, 1)); o.push(dimH(BM.X(c.ddg.dx), bx1, BM.Y(-d.fs*4), fmt(c.ddg.Wl), BM.Y(0), BM.Y(0), stB, 1)); }
     else o.push(dimH(bx0, bx1, BM.Y(-d.fs*4), fmt(c.W), BM.Y(0), BM.Y(0), stB, 1));
     if(c.inner && !c.pvc) o.push(dimH(BM.X(c.inner.x0), BM.X(c.inner.x1), BM.Y(-d.fs*1.8), fmt(c.inner.x1 - c.inner.x0), BM.Y(0), BM.Y(0), stB, 1));
-    if(c.njg && c.njg.n > 1 && c.njg.gap > 0.004 && +c.s.njgap > 0){      // New Jersey gate: the space between the pickets (they are all the same), on the gap next to the right-hand rail, with its number out on the right so it takes no room under the gate
-      var ngx0 = c.njg.xs[0] + GM.njW/2, ngx1 = c.njg.xs[1] - GM.njW/2, ngS = stB.size, ngl = fmt(c.njg.gap), ngy = BM.Y(c.njg.z0 + (c.njg.z1 - c.njg.z0)*0.3);
+    if(c.njg && c.njg.n > 1 && c.njg.gap > 0.004 && +(c.njg.arg ? c.s.argap : c.s.njgap) > 0){      // New Jersey gate: the space between the pickets (they are all the same), on the gap next to the right-hand rail, with its number out on the right so it takes no room under the gate
+      var ngx0 = c.njg.xs[0] + c.njg.pw/2, ngx1 = c.njg.xs[1] - c.njg.pw/2, ngS = stB.size, ngl = fmt(c.njg.gap), ngy = BM.Y(c.njg.z0 + (c.njg.z1 - c.njg.z0)*0.3);
       var ngA = BM.X(c.W - ngx1), ngB = BM.X(c.W - ngx0), ngTx = bx1 + 0.6*ngS, ngK = DIM_RED, ngLen = ngS*0.8, ngHw = ngS*0.14, ngSw = stB.sw || ngS*0.06;
       function ngLn(x1, y1, x2, y2){ return '<line x1="' + n3(x1) + '" y1="' + n3(y1) + '" x2="' + n3(x2) + '" y2="' + n3(y2) + '" stroke="' + ngK + '" stroke-width="' + n3(ngSw) + '"/>'; }
       o.push(dimWrap('h', ngl, ngLn(ngA, ngy - ngS*0.7, ngA, ngy + ngS*0.7) + ngLn(ngB, ngy - ngS*0.7, ngB, ngy + ngS*0.7) + ngLn(ngA - ngLen - ngS*0.5, ngy, ngA, ngy) + ngLn(ngB, ngy, ngTx - 1, ngy) +
@@ -5120,14 +5122,14 @@ if(typeof document !== 'undefined'){
     {key:'mwire', label:'Black wire (gate side only)', metal:true, choices:[['off','Off'],['on','On']], when:function(){ return state.material === 'metal'; }},
     {key:'mswing', label:'Swing gate opening', metal:true, choices:[['off','Off'],['on','On']], when:function(){ return state.material === 'metal'; }},
     {key:'sides', label:'Sides', choices:[['single','Single sided'],['double','Double sided']]},
-    {key:'dstyle', label:'Double sided style', choices:[['both','Pickets both sides'],['tg','T&G (Oklahoma)'],['ilg','ILG-CUS<small>(Illinois gate)</small>'],['njg','NJG-CUS<small>(New Jersey gate)</small>'],['oe','OE-CUS<small>(Old English)</small>'],['oeg','OEG-CUS<small>(Old English gate)</small>'],['ar','2AR-CUS<small>(Arkansas)</small>'],['wsl','WSL-CUS<small>(Square Lattice Section)</small>'],['wslg','WSLG-CUS<small>(Square Lattice Gate)</small>'],['wdl','WDL-CUS<small>(Diagonal Lattice Section)</small>'],['wdlg','WDLG-CUS<small>(Diagonal Lattice Gate)</small>']], when:function(){ return state.sides === 'double'; }},
+    {key:'dstyle', label:'Double sided style', choices:[['both','Pickets both sides'],['tg','T&G (Oklahoma)'],['ilg','ILG-CUS<small>(Illinois gate)</small>'],['njg','NJG-CUS<small>(New Jersey gate)</small>'],['oe','OE-CUS<small>(Old English)</small>'],['oeg','OEG-CUS<small>(Old English gate)</small>'],['ar','2AR-CUS<small>(Arkansas)</small>'],['arg','2ARG-CUS<small>(Arkansas gate)</small>'],['wsl','WSL-CUS<small>(Square Lattice Section)</small>'],['wslg','WSLG-CUS<small>(Square Lattice Gate)</small>'],['wdl','WDL-CUS<small>(Diagonal Lattice Section)</small>'],['wdlg','WDLG-CUS<small>(Diagonal Lattice Gate)</small>']], when:function(){ return state.sides === 'double'; }},
     {key:'align', label:'Back pickets', choices:[['aligned','Directly behind'],['stagger','Staggered in the gaps']], when:function(){ return state.sides === 'double' && state.dstyle === 'both'; }},
     {key:'oeHr', label:'High rail size', choices:[['6','2 x 6'],['3.5','2 x 3 1/2']], when:function(){ return oeOn() || oegOn() || arOn(); }},
     {key:'pframe', label:'Frame', choices:[['gm','Gate Master frame'],['pocket','Pocket frame']], when:function(){ return pvcGateOn() && !njgOn() && !oegOn(); }},
     {key:'alFrame', label:'Aluminum back frame', choices:[['off','Off'],['on','On']], when:function(){ return pvcGateOn() && !njgOn() && !oegOn() && state.pframe !== 'pocket'; }},
     {key:'ppost', label:'Post size', choices:[['5','5x5 post'],['4','4x4 post'],['3.5','3 1/2 x 3 1/2 Gate Master']], when:function(){ return pvcGateOn() && !njgOn() && !oegOn() && state.pframe === 'pocket'; }},
     {key:'ddg', label:'Double drive gate', choices:[['off','Off'],['on','On']], when:function(){ return pvcGateOn() || ilgOn(); }},
-    {key:'topper', label:'Topper', choices:[['none','None'],['MDL','Mini diagonal lattice (MDL)'],['DDL','Deluxe diagonal lattice (DDL)'],['MSL','Mini square lattice (MSL)'],['DSL','Deluxe square lattice (DSL)'],['CST','Closed spindle topper'],['OST','Open spindle topper'],['OSS','Open spindle scallop topper'],['OSC','Open spindle crown topper'],['OEN','Old English topper']], when:function(){ return pvcGateOn() && !oegOn() && (state.ddg !== 'on' || !njgOn()); }},
+    {key:'topper', label:'Topper', choices:[['none','None'],['MDL','Mini diagonal lattice (MDL)'],['DDL','Deluxe diagonal lattice (DDL)'],['MSL','Mini square lattice (MSL)'],['DSL','Deluxe square lattice (DSL)'],['CST','Closed spindle topper'],['OST','Open spindle topper'],['OSS','Open spindle scallop topper'],['OSC','Open spindle crown topper'],['OEN','Old English topper']], when:function(){ return pvcGateOn() && !oegOn() && !argGateOn() && (state.ddg !== 'on' || !njgOn()); }},
     {key:'ddgTLay', label:'Topper on a double drive gate', choices:[['one','One arch over the pair'],['each','A topper on each leaf']], when:function(){ return pvcGateOn() && !njgOn() && !oegOn() && state.ddg === 'on' && state.topRail === 'none' && (state.topper === 'OSS' || state.topper === 'OSC'); }},
     {key:'wTopper', label:'Topper', choices:[['none','None'],['SQL','Square lattice topper'],['DGL','Diagonal lattice topper'],['CST','Closed spindle topper'],['OST','Open spindle topper'],['OSS','Open spindle scallop topper'],['OSC','Open spindle crown topper']], when:function(){ return woodGateTgOn(); }},
     {key:'sstyle', label:'Single sided style', choices:[['std','Pickets'],['wpa','WPA-CUS','Pennsylvania Section']], when:function(){ return state.sides === 'single' && state.kind === 'fence' && state.material === 'wood'; }},
@@ -5158,9 +5160,10 @@ if(typeof document !== 'undefined'){
   function wslgOn(){ return state.sides === 'double' && (state.dstyle === 'wslg' || state.dstyle === 'wdlg') && state.kind === 'gate' && state.material === 'wood'; }       // wood square lattice gate (WSLG-CUS): the wood Oklahoma gate frame with the lattice and corner supports
   function arOn(){ return state.sides === 'double' && state.dstyle === 'ar' && state.kind === 'fence' && state.material === 'pvc'; }       // PVC Arkansas section (2AR-CUS): 1 1/2 square pickets between 2 x 3 1/2 rails
   function oeOn(){ return state.sides === 'double' && state.dstyle === 'oe' && state.kind === 'fence' && state.material === 'pvc'; }       // PVC Old English section (OE-CUS): the Oklahoma section with a grid of uprights and bars
-  function pvcGateOn(){ return state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'njg' || state.dstyle === 'oeg') && state.kind === 'gate' && state.material === 'pvc'; }
+  function pvcGateOn(){ return state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'njg' || state.dstyle === 'oeg' || state.dstyle === 'arg') && state.kind === 'gate' && state.material === 'pvc'; }
   function oegOn(){ return state.sides === 'double' && state.dstyle === 'oeg' && state.kind === 'gate' && state.material === 'pvc'; }       // PVC Old English gate (OEG-CUS): Gate Rail frame and a grid of uprights and bars       // PVC Oklahoma gate: Gate Master frame, T&G, braces and plugs
-  function njgOn(){ return state.sides === 'double' && state.dstyle === 'njg' && state.kind === 'gate' && state.material === 'pvc'; }       // PVC New Jersey gate: Gate Rail frame and 7/8 x 3 pickets
+  function njgOn(){ return state.sides === 'double' && (state.dstyle === 'njg' || state.dstyle === 'arg') && state.kind === 'gate' && state.material === 'pvc'; }       // (the Arkansas gate shares the New Jersey gate's frame rows)
+  function argGateOn(){ return state.sides === 'double' && state.dstyle === 'arg' && state.kind === 'gate' && state.material === 'pvc'; }       // PVC Arkansas gate (2ARG-CUS): Gate Rail frame and 1 1/2 square pickets       // PVC New Jersey gate: Gate Rail frame and 7/8 x 3 pickets
   function ilgOn(){ return state.sides === 'double' && state.dstyle === 'ilg' && state.kind === 'gate' && state.material === 'pvc'; }       // PVC Illinois gate: Gate Rail frame and spindle pickets
   function woodGateTgOn(){ return state.sides === 'double' && state.dstyle === 'tg' && state.kind === 'gate' && state.material === 'wood'; }       // wood Oklahoma gate: the open area at the top takes a topper
   function pvcOK(){ return tgFenceOn() && state.material === 'pvc'; }       // PVC Oklahoma fence: posts, rails, 7811TG, LUC and caps
@@ -5384,7 +5387,7 @@ if(typeof document !== 'undefined'){
   function sameStyle(a, b){ return a.material === b.material && a.kind === b.kind && a.dstyle === b.dstyle && pStyle(a) === pStyle(b); }      // a preset belongs to the build and style it was saved under
   function renderPresetBtns(){
     var host = presetFs.querySelector('#presetBtns'); if(!host) return;
-    var lg = presetFs.querySelector('legend'); if(lg) lg.textContent = pergolaOn() ? 'PERG-CUS presets' : wpaOn() ? 'WPA-CUS presets' : (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wdl') ? 'WDL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wdlg') ? 'WDLG-CUS presets' : (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wsl') ? 'WSL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wslg') ? 'WSLG-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'ar') ? '2AR-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'oe') ? 'OE-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'oeg') ? 'OEG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'tg') ? 'OKG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'ilg') ? 'ILG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'njg') ? 'NJG-CUS presets' : 'Presets';
+    var lg = presetFs.querySelector('legend'); if(lg) lg.textContent = pergolaOn() ? 'PERG-CUS presets' : wpaOn() ? 'WPA-CUS presets' : (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wdl') ? 'WDL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wdlg') ? 'WDLG-CUS presets' : (state.material === 'wood' && state.kind === 'fence' && state.dstyle === 'wsl') ? 'WSL-CUS presets' : (state.material === 'wood' && state.kind === 'gate' && state.dstyle === 'wslg') ? 'WSLG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'arg') ? '2ARG-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'ar') ? '2AR-CUS presets' : (state.material === 'pvc' && state.kind === 'fence' && state.dstyle === 'oe') ? 'OE-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'oeg') ? 'OEG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'tg') ? 'OKG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'ilg') ? 'ILG-CUS presets' : (state.material === 'pvc' && state.kind === 'gate' && state.dstyle === 'njg') ? 'NJG-CUS presets' : 'Presets';
     var h = '';
     presets.forEach(function(q, i){
       if(!sameStyle(q.data, state)) return;
@@ -5828,6 +5831,7 @@ if(typeof document !== 'undefined'){
     var oegIn2 = segFs.dstyle && segFs.dstyle.querySelector('input[value="oeg"]'); if(oegIn2) (oegIn2.closest('label') || oegIn2.parentNode).style.display = ilgOk ? '' : 'none';
     var njIn2 = segFs.dstyle && segFs.dstyle.querySelector('input[value="njg"]');
     if(njIn2) (njIn2.closest('label') || njIn2.parentNode).style.display = ilgOk ? '' : 'none';
+    var argIn2 = segFs.dstyle && segFs.dstyle.querySelector('input[value="arg"]'); if(argIn2) (argIn2.closest('label') || argIn2.parentNode).style.display = ilgOk ? '' : 'none';
     if((njgOn() || oegOn()) && state.pframe !== 'gm'){ state.pframe = 'gm'; var pfg = segFs.pframe.querySelector('input[value="gm"]'); if(pfg) pfg.checked = true; }      // the New Jersey gate has no pocket frame
     var oeIn2 = segFs.dstyle && segFs.dstyle.querySelector('input[value="oe"]'), oeOk = state.material === 'pvc' && state.kind === 'fence';      // OE-CUS and 2AR-CUS are only for a PVC fence
     if(oeIn2) (oeIn2.closest('label') || oeIn2.parentNode).style.display = oeOk ? '' : 'none';
@@ -5840,7 +5844,7 @@ if(typeof document !== 'undefined'){
     if(wdlIn2) (wdlIn2.closest('label') || wdlIn2.parentNode).style.display = wslOk ? '' : 'none';
     if(wdlgIn2) (wdlgIn2.closest('label') || wdlgIn2.parentNode).style.display = wslgOk ? '' : 'none';
     if(((state.dstyle === 'wsl' || state.dstyle === 'wdl') && !wslOk) || ((state.dstyle === 'wslg' || state.dstyle === 'wdlg') && !wslgOk)) state.dstyle = 'tg', (function(){ var tb = segFs.dstyle.querySelector('input[value="tg"]'); if(tb) tb.checked = true; renderPickets(); })();
-    if((state.dstyle === 'ilg' || state.dstyle === 'njg' || state.dstyle === 'oeg') && !ilgOk || (state.dstyle === 'oe' || state.dstyle === 'ar') && !oeOk){ state.dstyle = 'tg'; var tgBack = segFs.dstyle.querySelector('input[value="tg"]'); if(tgBack) tgBack.checked = true; renderPickets(); }
+    if((state.dstyle === 'ilg' || state.dstyle === 'njg' || state.dstyle === 'oeg' || state.dstyle === 'arg') && !ilgOk || (state.dstyle === 'oe' || state.dstyle === 'ar') && !oeOk){ state.dstyle = 'tg'; var tgBack = segFs.dstyle.querySelector('input[value="tg"]'); if(tgBack) tgBack.checked = true; renderPickets(); }
     if(presetFs) renderPresetBtns();
     // Framing is the normal 2x3 / 2x4 / 2x6 choice; an older saved 1x4 or 1x6 falls back to 2x4
     // The dowel rail is fence only: hide it on gates, and a gate that had it falls back to 2x4
@@ -5858,8 +5862,8 @@ if(typeof document !== 'undefined'){
     gmidBox.fs.style.display = (state.kind === 'gate' && state.material === 'wood' && state.sides === 'single') ? '' : 'none';
     pmidBox.fs.style.display = (pvcNow || oegOn()) ? '' : 'none';
     ['gap','top','bottom'].forEach(function(k){ inputs[k].parentNode.style.display = (tgMode || ilgOn() || njgOn()) ? 'none' : ''; });
-    njFs.style.display = njgOn() ? '' : 'none';
-    arFs.style.display = arOn() ? '' : 'none';
+    njFs.style.display = (njgOn() && !argGateOn()) ? '' : 'none';
+    arFs.style.display = (arOn() || argGateOn()) ? '' : 'none';
     var metalNow = state.material === 'metal';      // metal shows only Material, Build, Balance, Flip, Wire and Bracing, plus the height and width
     if(metalNow){
       SEGS.forEach(function(g){ if(!g.metal && g.key !== 'material') segFs[g.key].style.display = 'none'; });
@@ -5894,7 +5898,7 @@ if(typeof document !== 'undefined'){
     inputs.ilShow.parentNode.style.display = ilgOn() ? '' : 'none';
     inputs.ilHighH.parentNode.style.display = (ilgOn() && state.ilHigh === 'on') ? '' : 'none';
     inputs.njHighH.parentNode.style.display = (njHrOk() && state.njHigh === 'on') ? '' : 'none';
-    inputs.topperH.parentNode.style.display = ((pvcG && !oegOn() && state.topper !== 'none' && (!ddgNow || ddgTop)) || woodTop) ? '' : 'none';
+    inputs.topperH.parentNode.style.display = ((pvcG && !oegOn() && !argGateOn() && state.topper !== 'none' && (!ddgNow || ddgTop)) || woodTop) ? '' : 'none';
     inputs.supLeg.parentNode.style.display = wslgOn() ? '' : 'none';
     inputs.openShow.parentNode.style.display = (woodTop && state.wTopper === 'OST') ? '' : 'none';
     var woodArch = woodTop && (state.wTopper === 'OSS' || state.wTopper === 'OSC');
@@ -5902,7 +5906,7 @@ if(typeof document !== 'undefined'){
     inputs.openShowM.parentNode.querySelector('.lbl').textContent = state.wTopper === 'OSS' ? 'Middle pickets show' : 'Tallest pickets show';
     inputs.openShowE.parentNode.querySelector('.hint').textContent = 'How much the first and last pickets show above the top strip, to the tip of the point. ' + (state.wTopper === 'OSS' ? 'The Overall height is to these tips.' : 'They stand lower than the tallest pickets.') + ' ' + (state.wTopper === 'OSS' ? '10' : '4') + ' is the standard.';
     inputs.openShowM.parentNode.querySelector('.hint').textContent = (state.wTopper === 'OSS' ? 'How much the pickets at the middle of the dip show above the top strip.' : 'How much the tallest pickets show above the top strip. The Overall height is to these tips.') + ' ' + (state.wTopper === 'OSS' ? '4' : '10') + ' is the standard.';
-    inputs.latSp.parentNode.style.display = (woodTop || wslOn() || wslgOn() || oeOn() || oegOn() || (pvcG && state.topper === 'OEN' && (!ddgNow || ddgTop))) ? '' : 'none';
+    inputs.latSp.parentNode.style.display = (woodTop || wslOn() || wslgOn() || oeOn() || oegOn() || (pvcG && !argGateOn() && state.topper === 'OEN' && (!ddgNow || ddgTop))) ? '' : 'none';
     inputs.latSp.parentNode.querySelector('.hint').textContent = dglOn() ? 'The opening between parallel strips, measured square to the strips. The sheet is made at this spacing, then cut to size.' : (wslOn() || wslgOn()) ? ('The opening between strips, across and up and down. ' + (state.latMode === 'under' ? 'The closest opening at or under this is used.' : state.latMode === 'over' ? 'The closest opening at or over this is used.' : 'The closest whole number of strips is used.')) : (oeOn() || oegOn()) ? 'The opening between the uprights, and between the bars. The closest whole number of each is used.' : state.wTopper === 'DGL' && !wslOn() ? 'The opening between parallel strips, measured square to the strips. The sheet is made at this spacing, then cut to the topper size.' : (state.wTopper === 'CST' || state.wTopper === 'OST' || state.wTopper === 'OSS' || state.wTopper === 'OSC') ? 'The opening between spindles. The closest whole number of spindles is used.' : (pvcG ? 'The opening between the uprights and between the bars. The closest whole number of each is used.' : ('The opening between strips, across and up and down. ' + (woodTop && state.latMode === 'under' ? 'The closest opening at or under this is used.' : (woodTop && state.latMode === 'over') ? 'The closest opening at or over this is used.' : 'The closest whole number of strips is used.')));
     inputs.topperH.parentNode.querySelector('.hint').textContent = woodTop ? ((state.wTopper === 'OST' || state.wTopper === 'OSS' || state.wTopper === 'OSC') ? 'The bottom of the bottom strip to the tips of the ' + (state.wTopper === 'OST' ? 'pickets' : (state.wTopper === 'OSC' ? 'tallest pickets' : 'first and last pickets')) + ', show included. The 3/4 ledge under it is extra.' : 'The bottom of the bottom strip to the top of the top strip. The 3/4 ledge under it is extra.') : (state.topper === 'OST' && state.topRail !== 'none' && state.width >= GM.crownMin && state.width <= GM.crownMax) ? 'Top of the picket next to the upright down to the top of the 2x6 high-rail' : 'Top of the gate down to the top of the 2x6 high-rail';
     inputs.height.parentNode.querySelector('.hint').textContent = pvcNow ? 'Rail to rail, top and bottom. The posts are 4 taller.' : (pvcG ? (state.pframe === 'pocket' ? ((state.topper === 'OST' || state.topper === 'OSS') ? 'To the tip of the pickets. The posts are 2 taller, 1 above and 1 below.' : (state.topper === 'OSC') ? 'To the tip of the tallest pickets. The posts stand 1 above the end pickets and 1 below the bottom rail.' : 'Rail to rail. The posts are 2 taller, 1 above and 1 below.') : 'Overall, outside to outside') : (ilgOn() ? 'Overall, to the tip of the pyramid caps' : ((woodTop && state.wTopper === 'OSS') ? 'Overall, to the tips of the first and last pickets' : (woodTop && state.wTopper === 'OSC') ? 'Overall, to the tips of the tallest pickets' : (woodTop && state.wTopper === 'OST') ? 'Overall, to the tips of the pickets' : (tgMode ? 'Overall, not counting the cap board' : DIMS[0].hint))));
@@ -5969,10 +5973,10 @@ if(typeof document !== 'undefined'){
     var mat = state.material === 'wood' ? 'Wood' : (state.material === 'metal' ? 'Metal' : 'PVC');
     if(c.pergola){ var pgh = inputs.pgGap.parentNode.querySelector('.hint'); var pgp = inputs.pgPanelH.parentNode.querySelector('.hint'); var ppn = c.pergola.pan; pgp.textContent = 'Top of the top rail to the bottom of the bottom rail.' + (ppn && ppn.spind ? ' ' + ppn.spind.n + ' spindles on each panel, flush to the posts, ' + fmt(ppn.spind.gap) + ' between them.' : '') + (ppn && ppn.oe ? ' ' + ppn.oe.nU + ' uprights (' + fmt(ppn.oe.gX) + ' between) and ' + ppn.oe.nB + ' bars (' + fmt(ppn.oe.gZ) + ' between) on each panel.' : '');
       pgh.textContent = 'Uses ' + c.pergola.rc.n + ' rafters at exactly ' + fmt(c.pergola.rc.g) + '. The end rafters stand ' + fmt(c.pergola.rc.a) + ' outside the posts and the headers run ' + fmt(c.pergola.rc.b) + ' past them.'; }
-    var ah = el('argHint'); if(ah) ah.textContent = c.arf ? ('Uses ' + c.arf.n + ' pickets, so the space comes out at ' + fmt(c.arf.gap) + '. The first and last sit flush against the posts.') : 'About 2 by default.'; if(document.activeElement !== arIn) arShow();
+    var ah = el('argHint'); if(ah) ah.textContent = c.arf ? ('Uses ' + c.arf.n + ' pickets, so the space comes out at ' + fmt(c.arf.gap) + '. The first and last sit flush against the posts.') : (c.njg && c.njg.arg) ? ('Uses ' + c.njg.n + ' pickets, so the space comes out at ' + fmt(c.njg.gap) + '. The first and last sit flush against the side rails.') : 'About 2 by default.'; if(document.activeElement !== arIn) arShow();
     var nh = el('njgHint'); if(nh) nh.textContent = (c.njg) ? ('Uses ' + c.njg.n + ' pickets, so the space comes out at ' + fmt(c.njg.gap) + '. The first and last sit flush against the side rails.') : 'About 1/2 by default.';
     var sum = c.pergola ? ('PVC pergola PERG-CUS, ' + fmt(c.pergola.W) + ' x ' + fmt(c.pergola.D) + ' between the posts, ' + fmt(c.pergola.Hc) + ' to the bottom of the header, ' + c.pergola.rc.n + ' rafters, space ' + fmt(c.pergola.rc.g) + (c.pergola.pan ? ', side panels: ' + ({latsp:c.pergola.pan.type + ' lattice with closed spindle', lat:c.pergola.pan.type + ' lattice', spin:'closed spindle', oe:'Old English'})[c.pergola.pan.kind] : '')) : c.metal ? ('Metal cantilever gate, ' + fmt(c.metal.G) + ' gate + ' + fmt(c.metal.B) + ' balance = ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' + c.metal.ng + ' gate and ' + c.metal.nb + ' balance braces' + (c.metal.wire ? ', black wire' : '') + (c.metal.sw ? ', swing gate opening ' + fmt(c.metal.sw.open) : '')) : mat + ' ' + (state.kind === 'gate' ? (c.ddg ? 'double drive gate' : 'gate') : 'fence section') + ', ' + fmt(c.W) + ' x ' + fmt(c.H) + ', ' +
-      (c.njg ? ('New Jersey gate, ' + c.njg.n + ' pickets, space ' + fmt(c.njg.gap) + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '')) : c.ilg ? 'Illinois gate, spindle pickets' + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : c.mode === 'tg' ? (c.arf ? 'Arkansas' : c.oef ? 'Old English' : c.wsl ? (c.wsl.diag ? (c.wsl.sup ? 'Diagonal lattice gate, ' + fmt(c.wsl.gapD) + ' openings, ' + fmt(c.wsl.sup.leg) + ' supports' : 'Diagonal lattice section, ' + fmt(c.wsl.gapD) + ' openings') : (c.wsl.sup ? 'Square lattice gate, ' + c.wsl.nV + ' slats, ' + fmt(c.wsl.sup.leg) + ' supports' : 'Square lattice section, ' + c.wsl.nV + ' slats')) : 'Oklahoma T&G' + (c.pocket ? ' pocket' : '') + ', ' + c.pk.name + ' boards') + (c.topper ? ', ' + ({CST:'closed spindle', OEN:'old English', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + (c.pk.key.indexOf('wpa') === 0 ? ', Pennsylvania section, ' + (c.pk.key === 'wpa6' ? '1x6' : '1x4') + ' pickets' : ', ' + c.pk.name + ' pickets') + (c.mode === 'both' ? ', both sides' : ''));
+      (c.njg ? ((c.njg.arg ? 'Arkansas gate, ' : 'New Jersey gate, ') + c.njg.n + ' pickets, space ' + fmt(c.njg.gap) + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '')) : c.ilg ? 'Illinois gate, spindle pickets' + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : c.mode === 'tg' ? (c.arf ? 'Arkansas' : c.oef ? 'Old English' : c.wsl ? (c.wsl.diag ? (c.wsl.sup ? 'Diagonal lattice gate, ' + fmt(c.wsl.gapD) + ' openings, ' + fmt(c.wsl.sup.leg) + ' supports' : 'Diagonal lattice section, ' + fmt(c.wsl.gapD) + ' openings') : (c.wsl.sup ? 'Square lattice gate, ' + c.wsl.nV + ' slats, ' + fmt(c.wsl.sup.leg) + ' supports' : 'Square lattice section, ' + c.wsl.nV + ' slats')) : 'Oklahoma T&G' + (c.pocket ? ' pocket' : '') + ', ' + c.pk.name + ' boards') + (c.topper ? ', ' + ({CST:'closed spindle', OEN:'old English', OST:'open spindle', OSS:'open spindle scallop', OSC:'open spindle crown'}[c.topper] || c.topper) + ' topper' : '') + (c.crown ? (c.crown.name === 'scallop' ? ', scallop rail' : (c.crown.name === 's-swept' ? ', S-swept rail' : ', crown rail')) : '') : (isDowel(state.frame) ? (state.frame === 'dowel4' ? '2x4' : '2x3') + ' dowel rails' : state.frame + ' frame') + (c.pk.key.indexOf('wpa') === 0 ? ', Pennsylvania section, ' + (c.pk.key === 'wpa6' ? '1x6' : '1x4') + ' pickets' : ', ' + c.pk.name + ' pickets') + (c.mode === 'both' ? ', both sides' : ''));
     el('summary').textContent = sum;
     el('printmeta').textContent = 'AII ' + sum + '  (' + new Date().toLocaleDateString() + ')';
     try{
