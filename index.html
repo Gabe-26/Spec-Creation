@@ -2488,14 +2488,14 @@ function computePVCGate(s){
   var topRH = (PKT && TPK) ? topRH0 : Gz;      // the height of the top rail: with a topper a pocket gate's top rail is a 2 x 3 1/2 (the bottom rail stays a 2x6)
   if(PKT && TPK) zo1 = H - topRH;
   if(PKT) xb = true;      // a pocket gate always gets the X-brace, whatever the width
-  if(CR && !TPK && !(NJP && s.njHigh === 'on')) xb = true;      // (a New Jersey gate with a high rail follows the normal width rule) a crown or scallop rail gate with no topper always gets the X-brace, whatever the width; with a topper (a 2x6 high-rail) the normal width rule applies
+  if(CR && !TPK && !ARG && !(NJP && s.njHigh === 'on')) xb = true;      // (a New Jersey gate with a high rail follows the normal width rule) a crown or scallop rail gate with no topper always gets the X-brace, whatever the width; with a topper (a 2x6 high-rail) the normal width rule applies
   var isOpen = TPK === 'OST' || TPK === 'OSS' || TPK === 'OSC', isOE = TPK === 'OEN', isSp = TPK === 'CST' || isOpen, zt = TPK ? zrb : (CR ? CR.zInEnd : zo1), Hb = zt - zo0;      // isSp: closed spindle topper, where the top of the frame is a Gate Rail (no slot) instead of a Gate Master
   // High rail on the New Jersey gate (no topper): a plain hollow 2 x 3 1/2 (3 1/2 vertical) or 2 x 6 rail across between the side rails, the pickets going through 15/16 x 3 1/16 cutouts.
   // Its height is typed: from the bottom of the top rail (the lowest point of a curved underside) to the top of the high rail. The supports or the X-brace only fill the space under it.
   var nhr = null, nhrPart = null;
   if(NJP && !TPK && s.njHigh === 'on'){
     var nhH = isFinite(+s.njHighH) ? Math.max(0, +s.njHighH) : 11.5, nhS = (+s.njHighSize === 6) ? 6 : 3.5, nhT = zt - nhH, nhB = nhT - nhS;
-    if(nhB - zo0 < GM.hrMinBelow){ warn.push('The high rail does not fit: with the high rail ' + fmt(nhH) + ' under the top rail there is only ' + fmt(Math.max(0, nhB - zo0)) + ' left below it (at least ' + fmt(GM.hrMinBelow) + ' is needed). It is left off.'); if(CR) xb = true; }
+    if(nhB - zo0 < GM.hrMinBelow){ warn.push('The high rail does not fit: with the high rail ' + fmt(nhH) + ' under the top rail there is only ' + fmt(Math.max(0, nhB - zo0)) + ' left below it (at least ' + fmt(GM.hrMinBelow) + ' is needed). It is left off.'); if(CR && !ARG) xb = true; }
     else { nhr = {zrt:nhT, zrb:nhB, hh:nhH, size:nhS, zU:zt}; zt = nhB; Hb = zt - zo0; }
   }
   // Top of the posts: 1 above the gate. With the open spindle topper and the open spindle scallop topper the pickets stand above the top rail, so the posts rise to 1 above the tips of the pickets.
@@ -2624,7 +2624,7 @@ function computePVCGate(s){
     nT = njN; eE = pitch;
     if(Wc < 2*nPW) warn.push('The gate is too narrow for two pickets between the Gate Rails.');
   }
-  if(OEG){ /* the Old English gate has no bracing for now */ } else if(!xb){
+  if(OEG || (ARG && !xb)){ /* the Old English gate has no bracing for now; the Arkansas gate has none under 48 wide */ } else if(!xb){
     [['Bottom support', zo0, zo0 + GM.bw],['Top support', zt - GM.bw, zt]].forEach(function(b){
       parts.push({layer:'BRACE', kind:'brace', name:b[0], dir:'h', y0:by0, y1:by1, pts:rect(xo0, b[1], xo1, b[2]), loops:hollow(by0, b[1], by1, b[2]), x0:xo0, x1:xo1});
       plugXs.forEach(function(x){ plugs.push([x, (b[1] + b[2])/2]); });
@@ -2958,6 +2958,7 @@ function computePVCGate(s){
   if(!PKT) cuts.push({part:'Gate Master', qty:2, stock:fmt(GM.w) + ' x ' + fmt(GM.d), length:H, note:'Left and right, outside length, 45 degree miters'});
   cuts.push({part:'T&G boards', qty:n, stock:pk.name, length:bz1 - bz0, note:rip ? 'First and last boards cut to ' + fmt(lastW) + ' each' : 'Full boards'});
   if(OEG) cuts = cuts.filter(function(r){ return !/^(T&G boards|Plugs|Supports|X-brace)/.test(r.part); });
+  if(ARG && !xb) cuts = cuts.filter(function(r){ return !/^(Plugs|Supports|X-brace)/.test(r.part); });
   if(NJ) cuts.forEach(function(r){
     if(r.part === 'Gate Master') r.part = 'Gate Rail';
     if(OEG) return;
@@ -4642,7 +4643,7 @@ function sheetSvg(c, info){
     } else addG('frame', fmt(GM.w)+' X '+fmt(GM.d), 'GATE MASTER', 'front', (c.crown ? [[gW*0.7, GM.w/2],[GM.w/2, gH*0.5],[gW - GM.w/2, gH*0.5]] : [[gW*0.3, gH - GM.w/2],[gW*0.7, GM.w/2],[GM.w/2, gH*0.5]]), 225);
     if(c.oeg && c.pv.mids.length) addG('rail', fmt(GM.railT)+' X '+fmt(c.pv.hm), 'HIGH RAIL', 'front', (c.ddg ? [0.2, 0.3, 0.7, 0.8] : [0.22, 0.5, 0.78]).map(function(fx){ return [gW*fx, (c.pv.mids[0][0] + c.pv.mids[0][1])/2]; }), 180);
     if(c.alu) addG('alu', fmt(0.25)+' X '+fmt(3), 'ALUMINUM FRAME', 'back', (c.ddg ? [[1.75, gH*0.5],[c.ddg.Wl*0.5, 1.75],[c.ddg.dx + c.ddg.Wl*0.5, 1.75]] : [[1.75, gH*0.5],[gW*0.5, 1.75],[gW - 1.75, gH*0.5]]), 225);
-    if(!c.oeg) addG('brace', fmt(GM.bt)+' X '+fmt(c.xbrace ? GM.xw : GM.bw), c.xbrace ? 'X-BRACE' : 'SUPPORT', 'back', [], 40);
+    if(!c.oeg && !(c.njg && c.njg.arg && !c.xbrace)) addG('brace', fmt(GM.bt)+' X '+fmt(c.xbrace ? GM.xw : GM.bw), c.xbrace ? 'X-BRACE' : 'SUPPORT', 'back', [], 40);
     if(c.crown) addG('crown', fmt(GM.crownT)+' X '+fmt(GM.crownRo - GM.crownRi), ((c.crown.big ? 'LG ' : '') + (c.crown.name === 'scallop' ? 'SCALLOP RAIL' : (c.crown.name === 's-swept' ? 'S-SWEPT RAIL' : 'CROWN RAIL'))), 'front', (c.ddg ? [0.2, 0.35, 0.65, 0.8] : [0.3, 0.5, 0.7]).map(function(fx){ var xx = gW*fx; return [xx, (c.crown.zO(xx) + c.crown.zI(xx))/2]; }), 270);
     if(c.pocket){ addG('cap', fmt(c.pocket.post), 'TRADITIONAL CAP', 'front', (c.ddg ? c.ddg.capPts : [[c.pocket.post/2, c.pocket.top + GM.capUp/2],[gW - c.pocket.post/2, c.pocket.top + GM.capUp/2]]), 270); tgRows[tgRows.length-1].alsoBack = true; }
     else if(c.crown){ addG('cap', fmt(GM.w), 'TRADITIONAL CAP', 'front', (c.ddg ? c.ddg.capPts : [[GM.w/2, gH + GM.capUp/2],[gW - GM.w/2, gH + GM.capUp/2]]), 270); tgRows[tgRows.length-1].alsoBack = true; }
@@ -5154,7 +5155,7 @@ if(typeof document !== 'undefined'){
   function tgFenceOn(){ return state.sides === 'double' && (state.dstyle === 'tg' || state.dstyle === 'oe' || state.dstyle === 'ar' || state.dstyle === 'wsl' || state.dstyle === 'wdl') && state.kind === 'fence'; }
   function dglOn(){ return state.sides === 'double' && (state.dstyle === 'wdl' || state.dstyle === 'wdlg') && state.material === 'wood' && ((state.dstyle === 'wdl') === (state.kind === 'fence')); }       // wood diagonal lattice section or gate (WDL-CUS, WDLG-CUS)
   function wslOn(){ return state.sides === 'double' && (state.dstyle === 'wsl' || state.dstyle === 'wdl') && state.kind === 'fence' && state.material === 'wood'; }       // wood square lattice section (WSL-CUS): the Oklahoma section with a square lattice in place of the T&G
-  function njHrOk(){ return njgOn() && (state.ddg === 'on' || state.topper === 'none'); }       // the New Jersey gate's high rail: no topper (a double drive New Jersey gate has no toppers, whatever the Topper row still holds)
+  function njHrOk(){ return njgOn() && (state.ddg === 'on' || state.topper === 'none' || argGateOn()); }       // the New Jersey gate's high rail: no topper (a double drive New Jersey gate has no toppers, whatever the Topper row still holds)
   function wpaOn(){ return state.sides === 'single' && state.kind === 'fence' && state.material === 'wood' && state.sstyle === 'wpa'; }       // wood single sided Pennsylvania section (WPA-CUS): the square-edge board
   function sqlLatOn(){ return (wslOn() && state.dstyle === 'wsl') || (wslgOn() && state.dstyle === 'wslg') || (woodGateTgOn() && state.wTopper === 'SQL'); }       // the square lattices (wood): the ones that round to a whole number of strips
   function wslgOn(){ return state.sides === 'double' && (state.dstyle === 'wslg' || state.dstyle === 'wdlg') && state.kind === 'gate' && state.material === 'wood'; }       // wood square lattice gate (WSLG-CUS): the wood Oklahoma gate frame with the lattice and corner supports
